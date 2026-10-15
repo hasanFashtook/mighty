@@ -412,24 +412,38 @@ python3 src/mighty/scripts/run_sim.py --mode gazebo -s ~/code/mighty_ws/install/
                         gazebo                          single UAV (or --ground-robot) in Gazebo
                         exploration-singleagent-ground  ground robot, autonomous exploration
                         exploration-multiagent-ground   multiple ground robots, MinPos exploration
+                        multiagent-ground-fake          N ground robots swapping on a circle, no Gazebo
+                        multiagent-ground-gazebo        same swap with sensorless P3AT models in Gazebo
                         multiagent-ground               N ground robots with MPC
                         swap-multiagent-ground          ground robots swapping positions
                         dyn-test, dyn-test-ground, dyn-test-ground-mpc
                                                         dynamic-obstacle test scenarios
   --setup-bash, -s    Required. Path to setup.bash
-  --num-agents, -n    Number of agents for multiagent modes (default: 10)
+  --num-agents, -n    Number of agents. Default depends on mode: 10 for multiagent,
+                      multiagent-ground-fake and multiagent-ground-gazebo; 4 for
+                      swap-multiagent-ground and multiagent-ground; 3 for
+                      exploration-multiagent-ground
   --radius, -r        Circle radius for the multiagent formation (default: 10.0)
+  --goal-pattern      Ground swap modes: swap (antipodal, default) or random_slot
+                      (each robot draws its next goal from the N circle slots)
+  --goal-stagger      multiagent-ground-fake: per-agent goal-release stagger in
+                      seconds (default 0 = all goals released together)
+  --mpc-rate          Ground swap modes: mpc_node control rate in Hz (default 20)
+  --mpc-horizon       Ground swap modes: mpc_node N_horizon steps (default 10);
+                      on a many-core host try --mpc-rate 40 --mpc-horizon 20
   --goal, -g          Goal position X Y Z for gazebo mode (default: depends on --env —
-                      305 for hard_forest, 105 for easy_forest/forest, 30 for the
+                      305 for hard_forest, 105 for easy_forest/forest, 20 for the
                       small worlds; z drops to 0 for --ground-robot)
   --start, -p         Start position X Y Z for gazebo mode (default: 0 0 3)
   --start-yaw         Start yaw in radians (default: 1.57)
   --env, -e           Gazebo environment (default: hard_forest)
   --ros-domain-id     ROS_DOMAIN_ID (default: 30)
   --ground-robot      Use the Pioneer 3-AT ground robot instead of the UAV
-  --no-rviz           Disable RViz (headless; required for unattended runs)
+  --rviz / --no-rviz  Enable (default) / disable RViz; --no-rviz is required for
+                      unattended runs
   --gazebo-gui        Enable Gazebo GUI
   --no-goal           Do not auto-publish a terminal goal
+  --log-level         mighty_node log level: debug, info, warn, error (default), fatal
   --use-vlm           Use the VLM frontier selector (exploration-singleagent-ground only)
   --follow            Also spawn the YOLOv8 person tracker (needs --use-vlm)
   --dry-run           Print generated YAML without launching
