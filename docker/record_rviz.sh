@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+# Record an RViz video of one exploration_test.py scenario, fully headless.
+#
+# Entrypoint of `make record-ground-swap` (docker/Makefile). Inside one
+# container: Xvfb virtual display -> harness run (headless; it owns pass/fail)
+# -> wait until every robot exists in Gazebo -> rviz2 + ffmpeg x11grab ->
+# wait for the harness verdict. No X server, GPU or host network is needed,
+# which is what makes this usable on shared servers.
+#
+# Outputs go to /runs/$RUN_TAG and are chowned to HOST_UID:HOST_GID on every
+# exit, because the container runs as root and the run dir is a bind mount.
+#
+# Env: HOST_UID (required), HOST_GID, SCENARIO, RVIZ_CONFIG, REC_SECONDS,
+#      RUN_TAG, NUM_ROBOTS, SPAWN_TIMEOUT, ROS_DOMAIN_ID,
+#      SELFTEST=render (no sim: Xvfb+rviz2+ffmpeg only) | spawn (spawn wait only).
+# Exit: 0 pass, 2 bad env, 3 robots never spawned, 4 harness FAIL,
+#       5 no verdict, 124 hard timeout, 130/143 interrupted.
+
+set -uo pipefail
+
+SCENARIO="${SCENARIO:-ground-swap-10-gazebo}"
+RVIZ_CONFIG="${RVIZ_CONFIG:-multi_mighty_ground_gazebo.rviz}"
+REC_SECONDS="${REC_SECONDS:-300}"
+NUM_ROBOTS="${NUM_ROBOTS:-10}"
+SPAWN_TIMEOUT="${SPAWN_TIMEOUT:-420}"
+HARD_TIMEOUT_S="${HARD_TIMEOUT_S:-2400}"
+RUN_TAG="${RUN_TAG:-$(date +%Y%m%d_%H%M%S)}"
+RUN_DIR="/runs/${RUN_TAG}"
+DISPLAY_NUM=":99"
+WIDTH=1920
+HEIGHT=1080
+
+PIDS=()
+FFMPEG_PID=""
+
+# Rewrite an .rviz config for recording: the window fills the virtual screen
+# and both docks are hidden, so the capture is the 3D view only. The
+# checked-in configs are saved at 3840x2123 with the Displays dock open.
+write_record_rviz() {
+  local src="$1" dst="$2"
+  sed -E \
+    -e "s/^(  Width:) .*/\1 ${WIDTH}/" \
+    -e "s/^(  Height:) .*/\1 ${HEIGHT}/" \
+    -e "s/^(  X:) .*/\1 0/" \
+    -e "s/^(  Y:) .*/\1 0/" \
+    -e "s/^(  Hide Left Dock:) .*/\1 true/" \
+    -e "s/^(  Hide Right Dock:) .*/\1 true/" \
+    "$src" > "$dst"
+}
+
+# Number of distinct robot names (NX01..NX99) in a blob of text, e.g. a
+# gazebo_msgs/ModelStates message.
+count_robots() {
+  grep -oE "NX[0-9]{2}" <<<"$1" | sort -u | wc -l
+}
+
+# Map a harness run record to an exit code: 0 passed, 4 failed, 5 unreadable.
+verdict_exit() {
+  python3 - "$1" <<'PY'
+import json, sys
+try:
+    rec = json.load(open(sys.argv[1]))
+except Exception as e:
+    print(f"[record] no readable verdict at {sys.argv[1]}: {e}")
+    sys.exit(5)
+print(f"[record] harness verdict: {'PASS' if rec.get('passed') else 'FAIL'}")
+sys.exit(0 if rec.get("passed") else 4)
+PY
+}
+
+# Block until NUM_ROBOTS robots exist in Gazebo (the same topic the harness
+# gates all_models_spawned on) or SPAWN_TIMEOUT seconds pass. Recording before
+# that would film an empty scene; the spawn flake makes this a real case.
+wait_for_robots() {
+  local deadline=$(( $(date +%s) + SPAWN_TIMEOUT )) msg n
+  while (( $(date +%s) < deadline )); do
+    msg="$(timeout 15 ros2 topic echo --once --qos-reliability best_effort \
+             /plug/model_states_plug gazebo_msgs/msg/ModelStates 2>/dev/null || true)"
+    n="$(count_robots "$msg")"
+    echo "[record] robots in Gazebo: ${n}/${NUM_ROBOTS}"
+    (( n >= NUM_ROBOTS )) && return 0
+    sleep 5
+  done
+  echo "[record] robots never spawned within ${SPAWN_TIMEOUT}s"
+  return 3
+}
+
+cleanup() {
+  local code=$?
+  trap - EXIT INT TERM USR1
+  if [[ -n "$FFMPEG_PID" ]] && kill -0 "$FFMPEG_PID" 2>/dev/null; then
+    kill -INT "$FFMPEG_PID"          # SIGINT lets ffmpeg finalize the mp4
+    wait "$FFMPEG_PID" 2>/dev/null
+  fi
+  local p
+  for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null; done
+  tmux kill-server 2>/dev/null       # harness panes, if it was interrupted
+  if [[ -n "${HOST_UID:-}" && -d "$RUN_DIR" ]]; then
+    chown -R "${HOST_UID}:${HOST_GID:-$HOST_UID}" "$RUN_DIR"
+  fi
+  echo "[record] exit ${code}; outputs in ${RUN_DIR}"
+  exit "$code"
+}
+
+main() {
+  if [[ -z "${HOST_UID:-}" ]]; then
+    echo "[record] HOST_UID is required (run via: make -C docker record-ground-swap)"
+    return 2
+  fi
+  mkdir -p "$RUN_DIR"
+  exec > >(tee -a "$RUN_DIR/record.log") 2>&1
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  trap 'exit 124' USR1
+  trap cleanup EXIT
+  ( sleep "$HARD_TIMEOUT_S" && kill -USR1 $$ ) & PIDS+=($!)
+
+  set +u
+  source /opt/ros/humble/setup.bash
+  source "${DECOMP_WS}/install/setup.bash"
+  source "${MIGHTY_WS}/install/setup.bash"
+  source /usr/share/gazebo/setup.sh
+  set -u
+  [[ -f "${MIGHTY_WS}/src/mighty/REVISION" ]] && cp "${MIGHTY_WS}/src/mighty/REVISION" "$RUN_DIR/"
+  echo "[record] scenario=${SCENARIO} rviz=${RVIZ_CONFIG} rec=${REC_SECONDS}s selftest=${SELFTEST:-none} domain=${ROS_DOMAIN_ID:-unset}"
+
+  export DISPLAY="$DISPLAY_NUM" LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe QT_X11_NO_MITSHM=1
+  Xvfb "$DISPLAY_NUM" -screen 0 "${WIDTH}x${HEIGHT}x24" -nolisten tcp & PIDS+=($!)
+  sleep 2
+
+  if [[ "${SELFTEST:-}" == "spawn" ]]; then
+    wait_for_robots
+    return $?
+  fi
+
+  local harness_pid=""
+  if [[ -z "${SELFTEST:-}" ]]; then
+    python3 "${MIGHTY_WS}/src/mighty/scripts/exploration_test.py" run \
+      --scenario "$SCENARIO" --out "$RUN_DIR" --ros-domain-id "${ROS_DOMAIN_ID:-77}" &
+    harness_pid=$!; PIDS+=($harness_pid)
+    wait_for_robots || return 3
+    python3 "${MIGHTY_WS}/src/mighty/scripts/separation_probe.py" \
+      --agents "$NUM_ROBOTS" --threshold 1.0 --duration "$REC_SECONDS" \
+      --tag rec --outdir "$RUN_DIR" > "$RUN_DIR/separation.txt" 2>&1 & PIDS+=($!)
+  fi
+
+  write_record_rviz "${MIGHTY_WS}/install/mighty/share/mighty/rviz/${RVIZ_CONFIG}" /tmp/record.rviz
+  rviz2 -d /tmp/record.rviz > "$RUN_DIR/rviz.log" 2>&1 & PIDS+=($!)
+  sleep 15
+  ffmpeg -nostdin -loglevel warning \
+    -f x11grab -draw_mouse 0 -framerate 30 -video_size "${WIDTH}x${HEIGHT}" \
+    -t "$REC_SECONDS" -i "$DISPLAY_NUM" \
+    -map 0:v -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p "$RUN_DIR/rviz_raw.mp4" \
+    -map 0:v -vf fps=1/30 "$RUN_DIR/snap_%03d.png" &
+  FFMPEG_PID=$!
+  wait "$FFMPEG_PID"
+  FFMPEG_PID=""
+  echo "[record] recording finished: ${RUN_DIR}/rviz_raw.mp4"
+
+  [[ -n "${SELFTEST:-}" ]] && return 0
+  echo "[record] waiting for the harness verdict"
+  wait "$harness_pid"
+  verdict_exit "$RUN_DIR/run01.json"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+  exit $?
+fi
