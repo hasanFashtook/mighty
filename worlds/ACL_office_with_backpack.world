@@ -28021,19 +28021,20 @@
     <audio>
       <device>default</device>
     </audio>
+    <!-- Requires the backpack_blue model on GAZEBO_MODEL_PATH (not shipped in this repo). -->
     <model name='Jansport_School_Backpack_Blue_Streak'>
       <link name='link_0'>
         <visual name='visual'>
           <geometry>
             <mesh>
-              <uri>/home/kkondo/.gazebo/models/backpack_blue/meshes/model.obj</uri>
+              <uri>model://backpack_blue/meshes/model.obj</uri>
             </mesh>
           </geometry>
         </visual>
         <collision name='collision_0'>
           <geometry>
             <mesh>
-              <uri>/home/kkondo/.gazebo/models/backpack_blue/meshes/model.obj</uri>
+              <uri>model://backpack_blue/meshes/model.obj</uri>
             </mesh>
           </geometry>
           <max_contacts>10</max_contacts>

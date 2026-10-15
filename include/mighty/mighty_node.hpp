@@ -288,8 +288,9 @@ class MIGHTY_NODE : public rclcpp::Node {
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr sub_occ_2d_;
   std::shared_ptr<const class OccGrid2D> occ_grid_2d_;
 
-  // Frontier exploration (ground robot only). Detector + persistent global
-  // frontier database. See plan: /home/kkondo/.claude/plans/snazzy-moseying-donut.md
+  // Frontier exploration (ground robot only): FrontierDetector finds frontier
+  // clusters in each 2D occupancy update; FrontierManager keeps them in a
+  // persistent database (state lifecycle, claims, peer verdicts) across updates.
   std::unique_ptr<FrontierDetector> frontier_detector_;
   std::unique_ptr<FrontierManager>  frontier_manager_;
   // Persistent "ever-observed" bitmap. Suppresses re-detection of frontiers

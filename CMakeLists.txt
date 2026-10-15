@@ -171,6 +171,7 @@ install(PROGRAMS
   scripts/frame_align_publisher.py
   scripts/formation_viz_node.py
   scripts/publish_subfloor_cloud.py
+  scripts/bag_record.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

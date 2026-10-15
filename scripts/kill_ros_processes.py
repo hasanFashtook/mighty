@@ -8,15 +8,8 @@
 
 import subprocess
 
-# The process to exclude (modify as needed for precision)
-EXCLUDE_PROCESS = (
-    "/usr/share/code/chrome_crashpad_handler --monitor-self-annotation=ptype=crashpad-handler --no-rate-limit "
-    "--database=/home/kkondo/.config/Code/Crashpad --url=appcenter://code?aid=fba07a4d-84bd-4fc8-a125-9640fc8ce171"
-    "&uid=41326c72-ab8c-4182-bbdc-a509e4058da4&iid=41326c72-ab8c-4182-bbdc-a509e4058da4&sid=41326c72-ab8c-4182-bbdc-a509e4058da4 "
-    "--annotation=_companyName=Microsoft --annotation=_productName=VSCode --annotation=_version=1.95.3 "
-    "--annotation=lsb-release=Ubuntu 22.04.5 LTS --annotation=plat=Linux --annotation=prod=Electron "
-    "--annotation=ver=32.2.1 --initial-client-fd=48 --shared-client-connection"
-)
+# VS Code's crash handler can match the filters below; never kill it.
+EXCLUDE_SUBSTRING = "chrome_crashpad_handler"
 
 def get_ros_processes():
     """Get a list of ROS-related processes."""
@@ -24,8 +17,9 @@ def get_ros_processes():
         # Run `ps aux | grep ros`
         result = subprocess.run(['ps', 'aux'], stdout=subprocess.PIPE, text=True)
         processes = result.stdout.splitlines()
-        # return [line for line in processes if 'ros' in line and EXCLUDE_PROCESS not in line]
-        return [line for line in processes if ('ros' in line and 'Microsoft' not in line) or ('gazebo' in line)]
+        return [line for line in processes
+                if (('ros' in line and 'Microsoft' not in line) or ('gazebo' in line))
+                and EXCLUDE_SUBSTRING not in line]
     except subprocess.CalledProcessError as e:
         print(f"Error executing ps aux: {e}")
         return []

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # /* ----------------------------------------------------------------------------
 #  * Copyright 2025, Kota Kondo, Aerospace Controls Laboratory
 #  * Massachusetts Institute of Technology
@@ -130,7 +131,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--bag_path",
         type=str,
-        default="/home/kkondo/data/mighty_exploration",
+        default=os.path.expanduser("~/data/mighty_exploration"),
         help="Directory to write the bag into",
     )
     parser.add_argument(

@@ -18,6 +18,9 @@ from time import sleep
 from random import seed, random, uniform
 import time
 
+# Root for benchmark CSVs, bags and logs (was an external drive).
+BENCHMARK_ROOT = os.path.expanduser("~/data/mighty")
+
 class BenchmarkNode(Node):
 
     def __init__(self):
@@ -68,9 +71,9 @@ class BenchmarkNode(Node):
         for algorithm in self.algorithms:
 
             # create directory for the algorithm
-            csv_folder_path = f"/media/kkondo/kota_elements/mighty/static/{self.env}/{self.benchmark_types}/csv/{algorithm}"
-            bag_folder_path = f"/media/kkondo/kota_elements/mighty/static/{self.env}/{self.benchmark_types}/bags/{algorithm}"
-            log_folder_path = f"/media/kkondo/kota_elements/mighty/static/{self.env}/{self.benchmark_types}/logs/{algorithm}"
+            csv_folder_path = f"{BENCHMARK_ROOT}/static/{self.env}/{self.benchmark_types}/csv/{algorithm}"
+            bag_folder_path = f"{BENCHMARK_ROOT}/static/{self.env}/{self.benchmark_types}/bags/{algorithm}"
+            log_folder_path = f"{BENCHMARK_ROOT}/static/{self.env}/{self.benchmark_types}/logs/{algorithm}"
             os.makedirs(csv_folder_path, exist_ok=True)
             os.makedirs(bag_folder_path, exist_ok=True)
             os.makedirs(log_folder_path, exist_ok=True)
@@ -117,7 +120,7 @@ class BenchmarkNode(Node):
         self.sim_process_onboard = subprocess.Popen(["ros2", "launch", "mighty", "onboard_mighty.launch.py", f"x:={start_x}", f"y:={start_y}", f"z:={self.goal_z}", "yaw:=0", "namespace:=NX01", f"use_obstacle_tracker:={self.use_dyn_obs}", f"data_file:={csv_folder_path}/num_{self.current_run}.csv", "global_planner:=sjps", "use_benchmark:=true"], preexec_fn=os.setsid)
         
         # Bag recording
-        self.sim_bag_record = subprocess.Popen(["python3", "/home/kkondo/code/dynus_ws/src/dynus/scripts/bag_record.py", "--bag_number", str(self.current_run), "--bag_path", f"{bag_folder_path}", "--agents", "['NX01']"], preexec_fn=os.setsid)
+        self.sim_bag_record = subprocess.Popen(["ros2", "run", "mighty", "bag_record.py", "--bag_name", f"num_{self.current_run}", "--bag_path", f"{bag_folder_path}", "--agents", "NX01"], preexec_fn=os.setsid)
 
         sleep(10)
         

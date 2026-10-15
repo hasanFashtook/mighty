@@ -633,7 +633,7 @@ void MIGHTY_NODE::declareParameters() {
   this->declare_parameter("visual_level", 1);
 
   // Global planner parameters
-  this->declare_parameter("file_path", "/home/kkondo/code/dynus_ws/src/dynus/data/data.txt");
+  this->declare_parameter("file_path", "");  // benchmark CSV; onboard_mighty.launch.py sets it from data_file
   this->declare_parameter("use_benchmark", false);
   this->declare_parameter("start_yaw", -90.0);
   this->declare_parameter("global_planner", "sjps");
