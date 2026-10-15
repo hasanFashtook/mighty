@@ -1155,6 +1155,8 @@ makes long round trips, so motion alone is never treated as evidence of a stall.
 
 The L-BFGS solver implementation in this repository (`src/mighty/lbfgs_solver.cpp`, `include/mighty/lbfgs_solver.hpp`) is adapted from [ZJU-FAST-Lab/GCOPTER](https://github.com/ZJU-FAST-Lab/GCOPTER/blob/main/gcopter/include/gcopter/lbfgs.hpp). We thank the authors for making their implementation publicly available.
 
+License texts for code adapted from GCOPTER, jps3d and motion_primitive_library are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 The ground robot's MPC path-tracking controller ([kotakondo/mpc](https://github.com/kotakondo/mpc), pulled in via `mighty.repos`) was originally developed by **[Lucas Jia (@lucas-yyy000)](https://github.com/lucas-yyy000)**. The ground-robot simulation depends on it.
 
 The `ACL_office` Gazebo environment used in the ground-robot exploration simulations was developed by **[Paul Leonhard Kohler (@p-kohler)](https://github.com/p-kohler)**.

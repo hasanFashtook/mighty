@@ -8,8 +8,9 @@
 
 #pragma once
 
-// This file is a mofified version of
+// This file is a modified version of
 // https://github.com/sikang/motion_primitive_library/blob/master/test/read_map.hpp
+// (Apache-2.0; see THIRD_PARTY_NOTICES.md).
 
 #include <fstream>
 #include <iostream>
