@@ -386,8 +386,10 @@ run-mac-ground-robot:
 # shows up as degraded control (README, Known Issues). Pass CPUS=N only if you
 # must limit it.
 # Usage: make record-ground-swap [IMAGE=...] [OUT_DIR=...] [CPUS=N] [MEM=64g]
+#        [SCENARIO=ground-swap-10-gazebo|ground-swap-10-gazebo-40hz]
 #        [REC_SECONDS=300] [SELFTEST=render|spawn] [SPAWN_TIMEOUT=420]
 OUT_DIR ?= $(HOME)/data/mighty/runs
+SCENARIO ?= ground-swap-10-gazebo
 MEM ?= 64g
 REC_SECONDS ?= 300
 REC_DOMAIN_ID ?= 77
@@ -401,7 +403,7 @@ record-ground-swap:
 	  -e ROS_LOCALHOST_ONLY=1 -e ROS_DOMAIN_ID=$(REC_DOMAIN_ID) \
 	  -e OMP_NUM_THREADS=2 -e OMP_WAIT_POLICY=PASSIVE \
 	  -e HOST_UID=$(shell id -u) -e HOST_GID=$(shell id -g) -e RUN_TAG=$(RECORD_TS) \
-	  -e SCENARIO=ground-swap-10-gazebo -e RVIZ_CONFIG=multi_mighty_ground_gazebo.rviz \
+	  -e SCENARIO=$(SCENARIO) -e RVIZ_CONFIG=multi_mighty_ground_gazebo.rviz \
 	  -e REC_SECONDS=$(REC_SECONDS) \
 	  $(if $(SELFTEST),-e SELFTEST=$(SELFTEST),) \
 	  $(if $(SPAWN_TIMEOUT),-e SPAWN_TIMEOUT=$(SPAWN_TIMEOUT),) \

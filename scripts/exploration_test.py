@@ -226,6 +226,23 @@ SCENARIOS = {
                     '10 m circle in Gazebo (empty world, models rendered in '
                     'RViz), time-boxed (README: --mode multiagent-ground-gazebo).',
     ),
+    # The README validates the antipodal swap at 40 Hz MPC on a many-core host;
+    # the scenario above runs the laptop-safe 20 Hz / horizon-10 defaults. Same
+    # gates; planner logs at info so a stall leaves evidence.
+    'ground-swap-10-gazebo-40hz': dict(
+        kind='swap',
+        mode='multiagent-ground-gazebo',
+        extra_args=['--no-rviz', '--mpc-rate', '40', '--mpc-horizon', '20',
+                    '--log-level', 'info'],
+        namespaces=[f'NX{i:02d}' for i in range(1, 11)],
+        cap_s=900.0,
+        startup_cap_s=420.0,
+        min_swap_legs=1,
+        gazebo=True,
+        description='ground-swap-10-gazebo at the README-validated many-core '
+                    'MPC settings (--mpc-rate 40 --mpc-horizon 20), planner '
+                    'logs at info.',
+    ),
     'ground-swap-10-gazebo-random': dict(
         kind='swap',
         mode='multiagent-ground-gazebo',
