@@ -426,6 +426,8 @@ python3 src/mighty/scripts/run_sim.py --mode gazebo -s ~/code/mighty_ws/install/
   --radius, -r        Circle radius for the multiagent formation (default: 10.0)
   --goal-pattern      Ground swap modes: swap (antipodal, default) or random_slot
                       (each robot draws its next goal from the N circle slots)
+  --max-legs          Ground swap modes: each robot parks after this many arrivals
+                      (default 0 = keep swapping; 1 = a single swap)
   --goal-stagger      multiagent-ground-fake: per-agent goal-release stagger in
                       seconds (default 0 = all goals released together)
   --mpc-rate          Ground swap modes: mpc_node control rate in Hz (default 20)

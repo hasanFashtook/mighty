@@ -386,7 +386,7 @@ run-mac-ground-robot:
 # shows up as degraded control (README, Known Issues). Pass CPUS=N only if you
 # must limit it.
 # Usage: make record-ground-swap [IMAGE=...] [OUT_DIR=...] [CPUS=N] [MEM=64g]
-#        [SCENARIO=ground-swap-10-gazebo|ground-swap-10-gazebo-40hz]
+#        [SCENARIO=ground-swap-10-gazebo|ground-swap-10-gazebo-40hz|ground-swap-10-gazebo-once]
 #        [REC_SECONDS=300] [SELFTEST=render|spawn] [SPAWN_TIMEOUT=420]
 OUT_DIR ?= $(HOME)/data/mighty/runs
 SCENARIO ?= ground-swap-10-gazebo

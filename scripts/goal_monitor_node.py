@@ -110,6 +110,13 @@ class GoalMonitorNode(Node):
         # distance_check_callback for the deadlock chain this breaks).
         self.declare_parameter('redraw_stagnation_sec', 20.0)
         self.redraw_stagnation_sec = self.get_parameter('redraw_stagnation_sec').value
+        # Stop after this many arrivals and stay parked on the last goal
+        # (0 = keep cycling forever). max_legs=1 gives a single swap: arrived
+        # robots park on the rim instead of re-entering the centre while
+        # slower (yielding) robots are still crossing.
+        self.declare_parameter('max_legs', 0)
+        self.max_legs = int(self.get_parameter('max_legs').value)
+        self.legs_done = 0
         self._stagnation_best = None
         self._stagnation_t = self.get_clock().now()
         self.distance_check_frequency = 1.0
@@ -268,6 +275,8 @@ class GoalMonitorNode(Node):
     def distance_check_callback(self):
         if self._still_staggered():
             return
+        if self.max_legs and self.legs_done >= self.max_legs:
+            return  # parked: publish_term_goal keeps holding the reached goal
 
         # Get the current goal point
         goal_x, goal_y, goal_z = self.goal_points[self.current_goal_index]
@@ -320,6 +329,11 @@ class GoalMonitorNode(Node):
         # swap wraps around its two fixed points; random_slot draws fresh.
         if distance < self.goal_tolerance:
             self.get_logger().info(f"Goal {self.current_goal_index} reached!")
+            self.legs_done += 1
+            if self.max_legs and self.legs_done >= self.max_legs:
+                self.get_logger().info(
+                    f"max_legs={self.max_legs} done — parking on goal {self.current_goal_index}")
+                return
             if getattr(self, 'goal_pattern', 'swap') == 'random_slot':
                 nxt = self._draw_next_slot()
                 self.current_slot = nxt

@@ -74,6 +74,12 @@ def generate_launch_description():
         default_value='0',
         description='Seed mixed into each agent\'s random_slot stream (reproducible runs)'
     )
+    max_legs_arg = DeclareLaunchArgument(
+        'max_legs',
+        default_value='0',
+        description='Stop after this many arrivals and park on the last goal '
+                    '(0 = cycle forever; 1 = a single swap)'
+    )
 
     def launch_setup(context):
         prefix = LaunchConfiguration('agent_prefix').perform(context)
@@ -87,6 +93,7 @@ def generate_launch_description():
         crossing_offset_m = float(LaunchConfiguration('crossing_offset_m').perform(context))
         goal_pattern = LaunchConfiguration('goal_pattern').perform(context)
         random_seed = int(LaunchConfiguration('random_seed').perform(context))
+        max_legs = int(LaunchConfiguration('max_legs').perform(context))
 
         namespaces = [f'{prefix}{i:02d}' for i in range(1, num_agents + 1)]
 
@@ -110,6 +117,7 @@ def generate_launch_description():
                         'crossing_offset_m': crossing_offset_m,
                         'goal_pattern': goal_pattern,
                         'random_seed': random_seed,
+                        'max_legs': max_legs,
                     }]
                 )
             )
@@ -127,5 +135,6 @@ def generate_launch_description():
         crossing_offset_arg,
         goal_pattern_arg,
         random_seed_arg,
+        max_legs_arg,
         OpaqueFunction(function=launch_setup),
     ])

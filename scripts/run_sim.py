@@ -232,7 +232,8 @@ def generate_multiagent_ground_fake_yaml(setup_bash: Path, agents: list, radius:
                                          goal_stagger: float = 0.0,
                                          goal_pattern: str = 'swap',
                                          mpc_rate: float = 20.0,
-                                         mpc_horizon: int = 10) -> str:
+                                         mpc_horizon: int = 10,
+                                         max_legs: int = 0) -> str:
     """Ground-robot position exchange WITHOUT Gazebo (fake_sim + RViz).
 
     Mirrors generate_multiagent_yaml (the UAV circle swap), with the ground
@@ -298,7 +299,7 @@ def generate_multiagent_ground_fake_yaml(setup_bash: Path, agents: list, radius:
                 f'ros2 launch mighty goal_monitor.launch.py num_agents:={len(agents)} '
                 f'radius:={radius} agent_prefix:=NX goal_tolerance:=1.0 '
                 f'use_ground_robot:=true start_stagger_sec:={goal_stagger} '
-                f'goal_pattern:={goal_pattern}'
+                f'goal_pattern:={goal_pattern} max_legs:={max_legs}'
             ]
         })
 
@@ -332,7 +333,8 @@ def generate_multiagent_ground_gazebo_yaml(setup_bash: Path, agents: list, radiu
                                            goal_stagger: float = 0.0,
                                            goal_pattern: str = 'swap',
                                            mpc_rate: float = 20.0,
-                                           mpc_horizon: int = 10) -> str:
+                                           mpc_horizon: int = 10,
+                                           max_legs: int = 0) -> str:
     """Ground-robot position exchange IN GAZEBO, sensorless models.
 
     The Gazebo sibling of generate_multiagent_ground_fake_yaml: same swap
@@ -388,7 +390,7 @@ def generate_multiagent_ground_gazebo_yaml(setup_bash: Path, agents: list, radiu
                 f'ros2 launch mighty goal_monitor.launch.py num_agents:={len(agents)} '
                 f'radius:={radius} agent_prefix:=NX goal_tolerance:=1.0 '
                 f'use_ground_robot:=true start_stagger_sec:={goal_stagger} '
-                f'goal_pattern:={goal_pattern}'
+                f'goal_pattern:={goal_pattern} max_legs:={max_legs}'
             ]
         })
 
@@ -1121,6 +1123,14 @@ def main():
     )
 
     parser.add_argument(
+        '--max-legs',
+        type=int,
+        default=0,
+        help='Ground swap modes: each robot stops after this many arrivals and '
+             'parks on its last goal (0 = keep swapping; 1 = a single swap).'
+    )
+
+    parser.add_argument(
         '--mpc-rate',
         type=float,
         default=20.0,
@@ -1361,7 +1371,8 @@ def main():
             use_rviz=(args.rviz and not args.no_rviz),
             log_level=args.log_level, no_goal=args.no_goal,
             goal_stagger=args.goal_stagger, goal_pattern=args.goal_pattern,
-            mpc_rate=args.mpc_rate, mpc_horizon=args.mpc_horizon)
+            mpc_rate=args.mpc_rate, mpc_horizon=args.mpc_horizon,
+            max_legs=args.max_legs)
         print(f"[INFO] Mode: Ground robot position exchange, NO Gazebo "
               f"(fake_sim + MPC unicycle) with {num} agents (radius={radius})")
         if overlay_file:
@@ -1391,7 +1402,8 @@ def main():
             use_rviz=(args.rviz and not args.no_rviz),
             log_level=args.log_level, no_goal=args.no_goal,
             goal_stagger=args.goal_stagger, goal_pattern=args.goal_pattern,
-            mpc_rate=args.mpc_rate, mpc_horizon=args.mpc_horizon)
+            mpc_rate=args.mpc_rate, mpc_horizon=args.mpc_horizon,
+            max_legs=args.max_legs)
         print(f"[INFO] Mode: Ground robot position exchange in Gazebo, "
               f"SENSORLESS models (P3AT in RViz) with {num} agents (radius={radius})")
         if overlay_file:

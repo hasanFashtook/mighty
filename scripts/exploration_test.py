@@ -91,6 +91,23 @@ def home_for(sc, ns):
     return sc['home']
 
 
+# One-shot swap scenarios (goal_monitor max_legs): a robot parks on its goal
+# after arriving, so its term_goal never changes and the usual "fresh term_goal
+# = one leg" counting sees nothing. An arrival is instead counted when the robot
+# is within goal_monitor's own goal_tolerance (run_sim passes 1.0 m).
+ONE_SHOT_ARRIVAL_TOL_M = 1.0
+
+
+def leg_arrived(pos, goal, tol=ONE_SHOT_ARRIVAL_TOL_M):
+    """True when pos is within tol of goal in the horizontal plane."""
+    return math.dist(pos[:2], goal[:2]) <= tol
+
+
+def all_swapped(sc, swap_legs):
+    """True when every agent has completed at least min_swap_legs legs."""
+    return all(swap_legs.get(a, 0) >= sc['min_swap_legs'] for a in sc['namespaces'])
+
+
 SCENARIOS = {
     'ground-exploration': dict(
         kind='exploration',
@@ -242,6 +259,25 @@ SCENARIOS = {
         description='ground-swap-10-gazebo at the README-validated many-core '
                     'MPC settings (--mpc-rate 40 --mpc-horizon 20), planner '
                     'logs at info.',
+    ),
+    # A single antipodal exchange: every robot crosses once and parks on its
+    # opposite slot (goal_monitor max_legs=1). Ends DONE as soon as all ten
+    # have arrived instead of running to the cap; continuous swapping sends
+    # arrived robots back through the centre while yielding robots are still
+    # crossing, which jammed both runs of the scenarios above.
+    'ground-swap-10-gazebo-once': dict(
+        kind='swap',
+        mode='multiagent-ground-gazebo',
+        extra_args=['--no-rviz', '--mpc-rate', '40', '--mpc-horizon', '20',
+                    '--log-level', 'info', '--max-legs', '1'],
+        namespaces=[f'NX{i:02d}' for i in range(1, 11)],
+        cap_s=900.0,
+        startup_cap_s=420.0,
+        min_swap_legs=1,
+        one_shot=True,
+        gazebo=True,
+        description='One antipodal exchange of 10 sensorless P3ATs in Gazebo '
+                    '(--max-legs 1): ends when all ten have crossed and parked.',
     ),
     'ground-swap-10-gazebo-random': dict(
         kind='swap',
@@ -741,6 +777,7 @@ class Monitor:
         self.pos_track_by_agent = {}     # {ns: [[t_rel, x, y], ...]}
         self._t_last_track = 0.0
         self.swap_legs = {}              # ns -> completed swap legs
+        self._one_shot_done = set()      # one_shot: agents that arrived and parked
         self._last_term_goal = {}
         self.min_separation_m = math.inf
         self.goal_reached = False
@@ -802,6 +839,11 @@ class Monitor:
     # -- callbacks ---------------------------------------------------------
     def _on_any_state(self, ns, msg):
         self.peer_pos[ns] = (msg.pos.x, msg.pos.y, msg.pos.z)
+        goal = self._last_term_goal.get(ns)
+        if (self.sc.get('one_shot') and ns not in self._one_shot_done
+                and goal is not None and leg_arrived(self.peer_pos[ns], goal)):
+            self._one_shot_done.add(ns)
+            self.swap_legs[ns] = self.swap_legs.get(ns, 0) + 1
         self.min_altitude = min(self.min_altitude, msg.pos.z)
         if ns == self.ns:
             self.state = msg
@@ -1205,6 +1247,8 @@ class Monitor:
                 if self.kind == 'swap':
                     return 'TIME_BOX_ELAPSED'
                 return 'TIMEOUT'
+            if self.sc.get('one_shot') and all_swapped(self.sc, self.swap_legs):
+                return 'DONE'
 
             # --- kind-specific success ---------------------------------------
             if self.kind == 'goal':
@@ -1303,8 +1347,10 @@ class Monitor:
                               and math.dist(pos[:2], home_for(self.sc, self.ns))
                                   <= self.sc['home_tol_m'])
             ref_pos, ref_t = self._prog_ref
-            if parked_at_home:
-                # Standing still at the captured start is success, not a stall.
+            parked_after_swap = self.sc.get('one_shot') and self.ns in self._one_shot_done
+            if parked_at_home or parked_after_swap:
+                # Standing still at the captured start (or, one-shot, on the
+                # reached goal) is success, not a stall.
                 self._prog_ref = (pos, now)
             elif math.dist(ref_pos[:2], pos[:2]) > self.NO_PROGRESS_EPS_M:
                 self._prog_ref = (pos, now)
@@ -1432,8 +1478,7 @@ def evaluate(sc, mon, outcome, duration_s, logs):
             # can. Every namespace must actually exist as an entity.
             gates['all_models_spawned'] = all(
                 ns in mon.gazebo_models for ns in sc['namespaces'])
-        gates['all_agents_swapped'] = all(v >= sc['min_swap_legs']
-                                          for v in legs.values())
+        gates['all_agents_swapped'] = all_swapped(sc, legs)
         # Gate only when the scenario declares a floor; ground-swap-10 reports
         # separation without gating it (see the scenario comment for why).
         if sc.get('min_separation_m') is not None:
