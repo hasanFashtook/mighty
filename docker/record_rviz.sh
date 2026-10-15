@@ -27,24 +27,34 @@ HARD_TIMEOUT_S="${HARD_TIMEOUT_S:-2400}"
 RUN_TAG="${RUN_TAG:-$(date +%Y%m%d_%H%M%S)}"
 RUN_DIR="/runs/${RUN_TAG}"
 DISPLAY_NUM=":99"
-WIDTH=1920
-HEIGHT=1080
+# The RViz window fills a 2000x1200 virtual screen; its 3D view then spans
+# x 25..1974, y 71..1161 (measured: menu bar + toolbar above, status bar
+# below, dock-toggle strips at the sides). Only a 1920x1080 region inside the
+# 3D view is recorded, so none of that chrome reaches the video.
+SCREEN_W=2000
+SCREEN_H=1200
+CAPTURE_W=1920
+CAPTURE_H=1080
+CAPTURE_X=40
+CAPTURE_Y=76
 
 PIDS=()
 FFMPEG_PID=""
 
-# Rewrite an .rviz config for recording: the window fills the virtual screen
-# and both docks are hidden, so the capture is the 3D view only. The
-# checked-in configs are saved at 3840x2123 with the Displays dock open.
+# Rewrite an .rviz config for recording: no dock panels and a window that
+# fills the virtual screen. rviz2 (Humble) applies "Hide Left Dock" while
+# loading the config, before the window is shown, when hiding a dock is a
+# no-op — so the Displays/Views docks are kept out of the frame by not
+# creating them (Panels: []). The checked-in configs are saved at 3840x2123.
 write_record_rviz() {
   local src="$1" dst="$2"
   sed -E \
-    -e "s/^(  Width:) .*/\1 ${WIDTH}/" \
-    -e "s/^(  Height:) .*/\1 ${HEIGHT}/" \
+    -e '/^Panels:$/,/^Visualization Manager:$/{/^Visualization Manager:$/!d}' \
+    -e 's/^Visualization Manager:$/Panels: []\n&/' \
+    -e "s/^(  Width:) .*/\1 ${SCREEN_W}/" \
+    -e "s/^(  Height:) .*/\1 ${SCREEN_H}/" \
     -e "s/^(  X:) .*/\1 0/" \
     -e "s/^(  Y:) .*/\1 0/" \
-    -e "s/^(  Hide Left Dock:) .*/\1 true/" \
-    -e "s/^(  Hide Right Dock:) .*/\1 true/" \
     "$src" > "$dst"
 }
 
@@ -125,7 +135,7 @@ main() {
   echo "[record] scenario=${SCENARIO} rviz=${RVIZ_CONFIG} rec=${REC_SECONDS}s selftest=${SELFTEST:-none} domain=${ROS_DOMAIN_ID:-unset}"
 
   export DISPLAY="$DISPLAY_NUM" LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe QT_X11_NO_MITSHM=1
-  Xvfb "$DISPLAY_NUM" -screen 0 "${WIDTH}x${HEIGHT}x24" -nolisten tcp & PIDS+=($!)
+  Xvfb "$DISPLAY_NUM" -screen 0 "${SCREEN_W}x${SCREEN_H}x24" -nolisten tcp & PIDS+=($!)
   sleep 2
 
   if [[ "${SELFTEST:-}" == "spawn" ]]; then
@@ -148,8 +158,8 @@ main() {
   rviz2 -d /tmp/record.rviz > "$RUN_DIR/rviz.log" 2>&1 & PIDS+=($!)
   sleep 15
   ffmpeg -nostdin -loglevel warning \
-    -f x11grab -draw_mouse 0 -framerate 30 -video_size "${WIDTH}x${HEIGHT}" \
-    -t "$REC_SECONDS" -i "$DISPLAY_NUM" \
+    -f x11grab -draw_mouse 0 -framerate 30 -video_size "${CAPTURE_W}x${CAPTURE_H}" \
+    -t "$REC_SECONDS" -i "${DISPLAY_NUM}+${CAPTURE_X},${CAPTURE_Y}" \
     -map 0:v -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p "$RUN_DIR/rviz_raw.mp4" \
     -map 0:v -vf fps=1/30 "$RUN_DIR/snap_%03d.png" &
   FFMPEG_PID=$!

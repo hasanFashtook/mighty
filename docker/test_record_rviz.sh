@@ -14,16 +14,26 @@ check() {
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-# write_record_rviz: the window fills 1920x1080 with both docks hidden, and
-# nothing outside Window Geometry changes (the saved config is 3840x2123).
+# write_record_rviz: no dock panels at all (rviz2 Humble ignores "Hide Left
+# Dock" at startup, so the only way to keep the Displays/Views docks out of
+# the frame is not to create them), the window sized to the virtual screen,
+# and the displays themselves untouched (the saved config is 3840x2123).
 src="$HERE/../rviz/multi_mighty_ground_gazebo.rviz"
 write_record_rviz "$src" "$tmp/r.rviz"
-check "width 1920"         "$(grep -c '^  Width: 1920$' "$tmp/r.rviz")" 1
-check "height 1080"        "$(grep -c '^  Height: 1080$' "$tmp/r.rviz")" 1
-check "left dock hidden"   "$(grep -c '^  Hide Left Dock: true$' "$tmp/r.rviz")" 1
-check "right dock hidden"  "$(grep -c '^  Hide Right Dock: true$' "$tmp/r.rviz")" 1
-check "3 lines changed"    "$(diff "$src" "$tmp/r.rviz" | grep -c '^>')" 3
-check "line count kept"    "$(wc -l < "$tmp/r.rviz")" "$(wc -l < "$src")"
+section() { sed -n '/^Visualization Manager:$/,/^Window Geometry:$/p' "$1"; }
+check "no panels"          "$(grep -c '^Panels: \[\]$' "$tmp/r.rviz")" 1
+check "no dock classes"    "$(grep -c 'rviz_common/Displays\|rviz_common/Views' "$tmp/r.rviz")" 0
+check "displays untouched" "$(diff <(section "$src") <(section "$tmp/r.rviz") | wc -l)" 0
+check "window width"       "$(grep -c "^  Width: ${SCREEN_W}$" "$tmp/r.rviz")" 1
+check "window height"      "$(grep -c "^  Height: ${SCREEN_H}$" "$tmp/r.rviz")" 1
+
+# Capture region: 1920x1080 inside the 3D view, which spans x 25..1974 and
+# y 71..1161 of a 2000x1200 window (measured; menu, toolbar, status bar and
+# the dock-toggle strips lie outside it).
+check "capture size"       "${CAPTURE_W}x${CAPTURE_H}" "1920x1080"
+check "capture inside x"   "$(( CAPTURE_X >= 25 && CAPTURE_X + CAPTURE_W - 1 <= 1974 ))" 1
+check "capture inside y"   "$(( CAPTURE_Y >= 71 && CAPTURE_Y + CAPTURE_H - 1 <= 1161 ))" 1
+check "screen measured"    "${SCREEN_W}x${SCREEN_H}" "2000x1200"
 
 # count_robots: distinct NXnn names only.
 check "no robots"          "$(count_robots "name: [ground_plane, sun]")" 0
