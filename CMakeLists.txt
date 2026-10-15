@@ -214,6 +214,11 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_peer_tracker
     Eigen3)
 
+  # Swap-mode standoff ring selection (header-only): pins that a senior never
+  # holds for a parked junior, so a parked cluster cannot circular-wait.
+  ament_add_gtest(test_standoff
+    src/test/test_standoff.cpp)
+
   ament_add_gtest(test_visited_map
     src/test/test_visited_map.cpp)
   ament_target_dependencies(test_visited_map

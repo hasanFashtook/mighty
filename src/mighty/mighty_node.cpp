@@ -11,10 +11,12 @@
 #include <mighty/occ_grid_2d.hpp>
 #include <mighty/frontier_detector.hpp>
 #include <mighty/frontier_manager.hpp>
+#include <mighty/standoff.hpp>
 #include <mighty/visited_map.hpp>
 
 #include <fstream>
 #include <iomanip>
+#include <unordered_set>
 
 using namespace std::chrono_literals;
 
@@ -3187,8 +3189,9 @@ void MIGHTY_NODE::publishMpcPath() {
     //    the reference-level yield slows robots WITHOUT touching their
     //    advertised plan, so a yielding/parked senior physically lags its
     //    plan by meters, exactly where a plan-only check waves me through.
-    // EVERY peer gets a ring, asymmetric by rank — and BOTH sides are
-    // load-bearing, each proven by a measured failure of its absence:
+    // Every peer gets a ring, asymmetric by rank (except a PARKED junior,
+    // see parked_peers below) — and BOTH sides are load-bearing, each proven
+    // by a measured failure of its absence:
     //   * junior checks seniors at peer_standoff_m (1.2): without any ring,
     //     crossings bottom out at 0.02-0.27 m (soft costs cannot floor a
     //     10-way crossing);
@@ -3213,10 +3216,23 @@ void MIGHTY_NODE::publishMpcPath() {
                                  path_msg.poses[0].pose.position.y);
     const double ring_junior =
         std::max(1.0, par_.peer_static_disc_m + par_.drone_radius - 0.15);
+    // Parked peers (occupancyMapCallback's detector). A senior keeps no ring
+    // around a parked junior (mighty::standoffRing): with both sides ringed,
+    // seven robots held in a line through the centre ~1.3 m apart, every one
+    // inside a neighbour's ring, and none moved for the rest of the run.
+    std::unordered_set<int> parked_peers;
+    {
+      std::lock_guard<std::mutex> lk(peer_park_mutex_);
+      for (const auto& [id, track] : peer_park_track_) {
+        if (track.parked) parked_peers.insert(id);
+      }
+    }
     for (const auto& tr : mighty_ptr_->getTrajs()) {
       if (!tr || !tr->is_agent) continue;
       const Eigen::Vector2d pnow = tr->eval(t_now).head<2>();
-      double ring = (my_id > tr->id) ? par_.peer_standoff_m : ring_junior;
+      double ring = mighty::standoffRing(my_id, tr->id, parked_peers.count(tr->id) > 0,
+                                         par_.peer_standoff_m, ring_junior);
+      if (ring <= 0.0) continue;
       // OUTWARD-ONLY ESCAPE: if we are ALREADY inside this peer's ring
       // (brake overrun past a truncated reference lands ~0.1 m under it at
       // laptop MPC rates; one measured pair sat absorbed at 0.98 m for a
