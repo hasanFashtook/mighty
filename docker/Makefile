@@ -382,10 +382,12 @@ run-mac-ground-robot:
 # servers). Outputs land in $(OUT_DIR)/<timestamp>/, owned by you; the last
 # line of record.log is "[record] exit <code>" (0 = harness PASS).
 # See docker/record_rviz.sh for exit codes and SELFTEST modes.
-# Usage: make record-ground-swap [IMAGE=...] [OUT_DIR=...] [CPUS=48] [MEM=64g]
+# CPU is deliberately uncapped: the sim runs on wall clock, so CPU starvation
+# shows up as degraded control (README, Known Issues). Pass CPUS=N only if you
+# must limit it.
+# Usage: make record-ground-swap [IMAGE=...] [OUT_DIR=...] [CPUS=N] [MEM=64g]
 #        [REC_SECONDS=300] [SELFTEST=render|spawn] [SPAWN_TIMEOUT=420]
 OUT_DIR ?= $(HOME)/data/mighty/runs
-CPUS ?= 48
 MEM ?= 64g
 REC_SECONDS ?= 300
 REC_DOMAIN_ID ?= 77
@@ -395,7 +397,7 @@ RECORD_NAME ?= $(shell id -un)-mighty-$(RECORD_TS)
 record-ground-swap:
 	mkdir -p $(OUT_DIR)
 	docker run -d --rm --init --name $(RECORD_NAME) \
-	  --cpus=$(CPUS) --memory=$(MEM) --shm-size=4g \
+	  $(if $(CPUS),--cpus=$(CPUS),) --memory=$(MEM) --shm-size=4g \
 	  -e ROS_LOCALHOST_ONLY=1 -e ROS_DOMAIN_ID=$(REC_DOMAIN_ID) \
 	  -e OMP_NUM_THREADS=2 -e OMP_WAIT_POLICY=PASSIVE \
 	  -e HOST_UID=$(shell id -u) -e HOST_GID=$(shell id -g) -e RUN_TAG=$(RECORD_TS) \
