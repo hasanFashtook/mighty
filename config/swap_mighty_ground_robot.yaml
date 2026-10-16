@@ -77,7 +77,15 @@ mighty_node:
         # sat frozen mid-field for 2+ minutes, boxed in by phantom bubbles.
         # The UAV swap survives the same geometry with Cw == its bbox (0.5);
         # proportionally for the 0.6 m ground bbox: 0.8 (0.2 m of margin).
-        planner_Cw: 0.8
+        # Raised to 1.2 once seniors stopped holding for parked juniors
+        # (mighty::standoffRing): with that fix the rings no longer floor the
+        # separation, so the bubble has to. Measured on single swaps (10 P3ATs,
+        # --max-legs 1, dynamic_weight 1e+5, Gazebo, 2026-10-15): Cw 0.8 ->
+        # closest 0.585 m (44 contacts); 1.0 -> 0.703 m (0); 1.2 -> 0.79 /
+        # 0.83 / 1.01 m over three runs (0 contacts, all ten crossed in
+        # ~2 min). 1.4 froze robots under the old two-sided rings; not
+        # re-measured since.
+        planner_Cw: 1.2
         # The UAV-swap recipe: SMALL bubble, BIG weight (multi_mighty.yaml
         # runs Cw 0.5 = its bbox with weight 1e+4). Measured here: Cw 0.8
         # with the office weight 1e+3 kept everyone flowing but let one pair
@@ -85,7 +93,9 @@ mighty_node:
         # crossing wave. A 10x weight turns the small bubble into a hard
         # shell. With exploration off there are no claims and no yield
         # governor; /trajs + J_dyn is the whole deconfliction story.
-        dynamic_weight: 1e+4
+        # 1e+5 since the parked-junior fix: at 1e+4 a senior passed 0.054 m
+        # from a parked junior (886 contact events); 1e+5 -> 0.585 m at Cw 0.8.
+        dynamic_weight: 1e+5
         # Taper phantom far-future peer conflicts: peers replan ~1 Hz, so a
         # predicted crossing 30 s out is fiction that bends the local
         # trajectory tail every replan. 8 s ≈ 8 m closing at 2 x 0.5 m/s.

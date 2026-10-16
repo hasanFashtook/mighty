@@ -562,9 +562,17 @@ in Gazebo, alone or as a coordinated team:
 > default — the classic simultaneous crossing (`--goal-stagger 5` releases
 > them sequentially instead), and `config/swap_mighty_ground_robot.yaml`
 > documents every parameter choice with the measurements behind it.
-> Both swap modes enforce a **guaranteed ≥ 1 m pairwise separation floor**
-> — see the Gazebo variant below for the mechanism and the measured
-> numbers; `scripts/separation_probe.py` is the verifier.
+> Both swap modes keep robots apart with peer standoff rings plus the
+> trajectory optimizer's peer avoidance; `scripts/separation_probe.py` is
+> the verifier. The rings used to make the ≥ 1 m pairwise floor a hard
+> guarantee, but with ten robots they could circular-wait: in 3 of 3 runs
+> on 2026-10-15, seven robots held in a line through the centre, each
+> inside a neighbour's ring, and never moved again. A senior now ignores a
+> parked junior's ring, which removes the deadlock **and the hard
+> guarantee**: a single swap (`--max-legs 1`, harness scenario
+> `ground-swap-10-gazebo-once`) completes in about 2 minutes with 0
+> contacts and closest approaches of 0.79–1.01 m over three runs. The
+> ≥ 1 m measurements in the Gazebo section below predate that change.
 
 > **The Gazebo variant** (`--mode multiagent-ground-gazebo`) runs the same
 > exchange with Gazebo in the loop, so RViz shows the actual **P3AT robot
