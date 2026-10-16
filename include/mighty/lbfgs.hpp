@@ -1,3 +1,6 @@
+// Adapted from ZJU-FAST-Lab/GCOPTER (gcopter/include/gcopter/lbfgs.hpp),
+// Copyright (c) 2021 Zhepei Wang and Fei Gao, MIT License.
+// See THIRD_PARTY_NOTICES.md for the full license text.
 #ifndef LBFGS_HPP
 #define LBFGS_HPP
 

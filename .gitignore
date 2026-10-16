@@ -1,8 +1,8 @@
 # Log files
 log/
 
-# Claude Code
-CLAUDE.md
+# Editor settings (machine-specific paths)
+.vscode/
 
 # Python cache
 __pycache__/

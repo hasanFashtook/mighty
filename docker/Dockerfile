@@ -59,7 +59,7 @@ ENV LIVOX_SDK_DIR=${CODE_DIR}/Livox-SDK2
 RUN mkdir -p ${MIGHTY_WS}/src
 WORKDIR ${MIGHTY_WS}/src
 ARG DUMMY=unknown
-ARG MIGHTY_VERSION=v0.0.7
+ARG MIGHTY_VERSION=v0.0.8
 RUN DUMMY=${DUMMY} git clone --depth 1 --branch ${MIGHTY_VERSION} https://github.com/mit-acl/mighty.git
 
 # Import every dependency (pinned in mighty.repos)
@@ -147,11 +147,12 @@ RUN echo 'alias tks="tmux kill-server"'                              >> ~/.bashr
     echo 'alias cbps="roscd && colcon build --packages-select"'      >> ~/.bashrc && \
     echo 'alias tf_visualize="ros2 run rqt_tf_tree rqt_tf_tree"'     >> ~/.bashrc
 
-# macOS visualization support
+# Headless / remote visualization support
 # Xpra: forwards individual windows efficiently (recommended for Mac)
 # Foxglove: web-based topic viewer
+# Xvfb + ffmpeg: headless RViz recording (docker/record_rviz.sh)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        xpra xvfb libgl1-mesa-glx libgl1-mesa-dri \
+        xpra xvfb ffmpeg libgl1-mesa-glx libgl1-mesa-dri \
         ros-${ROS_DISTRO}-foxglove-bridge \
         psmisc && \
     rm -rf /var/lib/apt/lists/*

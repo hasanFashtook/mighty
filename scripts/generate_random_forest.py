@@ -186,26 +186,26 @@ class ForestSpawner(Node):
         self.dynamic = False
         if difficulty == "easy":
             self.density = 0.05
-            CSV_PATH = "/home/kkondo/data/easy_forest_obstacle_parameters.csv"
+            CSV_PATH = os.path.expanduser("~/data/easy_forest_obstacle_parameters.csv")
         elif difficulty == "medium":
             self.density = 0.1
-            CSV_PATH = "/home/kkondo/data/medium_forest_obstacle_parameters.csv"
+            CSV_PATH = os.path.expanduser("~/data/medium_forest_obstacle_parameters.csv")
         elif difficulty == "hard":
             self.density = 0.4
-            CSV_PATH = "/home/kkondo/data/hard_forest_obstacle_parameters.csv"
+            CSV_PATH = os.path.expanduser("~/data/hard_forest_obstacle_parameters.csv")
         elif difficulty == "ground_robot":
             self.density = 0.2
-            CSV_PATH = "/home/kkondo/data/ground_robot_forest_obstacle_parameters.csv"
+            CSV_PATH = os.path.expanduser("~/data/ground_robot_forest_obstacle_parameters.csv")
         elif difficulty == "dynamic":
             self.density = 0.05
             self.dynamic = True
             self.dynamic_min_x = 35.0
             self.dynamic_max_x = 65.0
-            CSV_PATH = "/home/kkondo/data/dynamic_forest_obstacle_parameters.csv"
+            CSV_PATH = os.path.expanduser("~/data/dynamic_forest_obstacle_parameters.csv")
         else:
             self.get_logger().warn(f"Unknown difficulty '{difficulty}', defaulting to medium.")
             self.density = 0.1
-            CSV_PATH = "/home/kkondo/data/medium_forest_obstacle_parameters.csv"
+            CSV_PATH = os.path.expanduser("~/data/medium_forest_obstacle_parameters.csv")
 
         # Map bounds (ground_robot uses a small square area)
         if difficulty == "ground_robot":

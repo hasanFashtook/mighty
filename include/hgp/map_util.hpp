@@ -5,6 +5,7 @@
  * Authors: Kota Kondo, et al.
  * See LICENSE file for the license information
  * -------------------------------------------------------------------------- */
+// Portions derived from sikang/jps3d (BSD-3-Clause); see THIRD_PARTY_NOTICES.md.
 
 /**
  * @file map_util.h

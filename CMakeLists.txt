@@ -170,6 +170,8 @@ install(PROGRAMS
   scripts/repub_rviz_2Dgoal.py
   scripts/frame_align_publisher.py
   scripts/formation_viz_node.py
+  scripts/publish_subfloor_cloud.py
+  scripts/bag_record.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -201,6 +203,25 @@ if(BUILD_TESTING)
     src/mighty/frontier_detector.cpp
     src/mighty/frontier_manager.cpp)
   ament_target_dependencies(test_frontier_manager
+    rclcpp Eigen3 nav_msgs)
+
+  # Multi-robot coordination primitives. Both are header-only and ROS-free;
+  # neither had any coverage before multi-robot exploration was enabled.
+  # PeerTracker feeds MinPos allocation; VisitedMap::mergeFrom is the receiving
+  # half of /exploration/visited_maps.
+  ament_add_gtest(test_peer_tracker
+    src/test/test_peer_tracker.cpp)
+  ament_target_dependencies(test_peer_tracker
+    Eigen3)
+
+  # Swap-mode standoff ring selection (header-only): pins that a senior never
+  # holds for a parked junior, so a parked cluster cannot circular-wait.
+  ament_add_gtest(test_standoff
+    src/test/test_standoff.cpp)
+
+  ament_add_gtest(test_visited_map
+    src/test/test_visited_map.cpp)
+  ament_target_dependencies(test_visited_map
     rclcpp Eigen3 nav_msgs)
 
   ament_add_gtest(test_gradient_check
