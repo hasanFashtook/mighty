@@ -3172,10 +3172,13 @@ void MIGHTY_NODE::publishMpcPath() {
   // the ring. The truncated reference ends with an explicit zero speed, so
   // the MPC parks AT the ring instead of coasting through it; the next
   // publish re-extends the reference as soon as the winner has cleared.
-  // Winners keep their full reference (deadlock-freedom: one robot of any
-  // pair always proceeds); their clearance around a parked loser is the
-  // planner's ordinary avoidance problem — and a parked robot is its easiest
-  // case. /trajs modes only, like the yield fallback above.
+  // Winners keep their full reference, and a senior keeps no ring around a
+  // parked junior (mighty::standoffRing), so the most senior robot of any
+  // held cluster proceeds. Its clearance around a parked loser is the
+  // planner's ordinary avoidance problem, which makes the floor soft rather
+  // than guaranteed (single swaps: 0.79-1.01 m with the swap overlay's
+  // dynamic_weight / planner_Cw). /trajs modes only, like the yield
+  // fallback above.
   if (par_.peer_standoff_m > 0.0 && !par_.expl_use_minpos &&
       path_msg.poses.size() >= 2) {
     int my_id = 0;
@@ -3203,9 +3206,10 @@ void MIGHTY_NODE::publishMpcPath() {
     // The rings stay below the corridor-guaranteed detour distance around a
     // parked peer (peer_static_disc_m + drone_radius = 1.3): once anyone
     // parks, its DENSE disc (below) walls it off and everyone's replanned
-    // detour clears both rings, so every hold self-lifts. That makes the
-    // pattern slow-but-live at full 10-robot convergence (each encounter
-    // costs a park -> disc -> detour cycle) and bulletproof on the floor.
+    // detour was meant to clear both rings so every hold self-lifts. With
+    // both sides ringed, a dense line of parked robots instead circular-
+    // waited (2026-10-15, seven robots held for 900 s) — hence the parked-
+    // junior exemption below, after which the floor is soft.
     struct RingPeer {
       Eigen::Vector2d pnow;
       const dynTraj* tr;

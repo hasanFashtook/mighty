@@ -365,8 +365,10 @@ struct parameters {
   // this ring — the reference itself can never carry the robot inside it, so
   // the separation floor stops depending on soft-cost tuning (measured: with
   // yield+J_dyn alone, 10-way crossings still bottomed out at 0.05-0.27 m).
-  // The winner keeps its full reference — someone always proceeds, so the
-  // pattern is deadlock-free. <=0 disables (every non-swap config).
+  // The winner keeps its full reference, and a senior keeps no ring around
+  // a PARKED junior (mighty::standoffRing): with rings on both sides ten
+  // robots could circular-wait, so the floor is soft since 2026-10-15
+  // (single swaps: 0.79-1.01 m). <=0 disables (every non-swap config).
   double peer_standoff_m{0.0};
   // Static-ify parked peers: a peer whose eval(now) has stayed put for
   // ~0.5 s of wall time gets a disc of synthetic obstacle points of this

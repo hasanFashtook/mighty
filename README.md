@@ -71,7 +71,7 @@ workspace is built and run from `~/code/mighty_ws`; Docker commands run from
 | Ground robot in a forest world | `python3 src/mighty/scripts/run_sim.py --mode gazebo --ground-robot -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-robot` |
 | Single UAV, goals clicked in RViz | `python3 src/mighty/scripts/run_sim.py --mode interactive -s ~/code/mighty_ws/install/setup.bash` | `make run-interactive` |
 | Multi-agent UAVs swapping on a circle | `python3 src/mighty/scripts/run_sim.py --mode multiagent -s ~/code/mighty_ws/install/setup.bash` | `make run-multiagent` |
-| **Ground robots swapping on a circle, no Gazebo** (10 Pioneer 3-ATs exchange antipodal positions in RViz; full planner→MPC→unicycle chain; ≥ 1 m separation floor) | `python3 src/mighty/scripts/run_sim.py --mode multiagent-ground-fake -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-swap-fake` |
+| **Ground robots swapping on a circle, no Gazebo** (10 Pioneer 3-ATs exchange antipodal positions in RViz; full planner→MPC→unicycle chain; soft ≥ 1 m separation target — see the separation note below) | `python3 src/mighty/scripts/run_sim.py --mode multiagent-ground-fake -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-swap-fake` |
 | **Ground robots swapping on a circle, Gazebo + sensorless models** (same exchange, real P3AT models rendered in RViz; `--goal-pattern random_slot` for continuous traffic) | `python3 src/mighty/scripts/run_sim.py --mode multiagent-ground-gazebo -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-swap` |
 | Single UAV through a Gazebo forest | `python3 src/mighty/scripts/run_sim.py --mode gazebo -s ~/code/mighty_ws/install/setup.bash` | `make run-gazebo` |
 
@@ -209,7 +209,7 @@ In `run-interactive` mode, send goals from the RViz2 toolbar:
   | `make run-interactive` | Run single agent with manual goal (RViz2 2D Goal Pose) | - |
   | `make run-multiagent` | Run multi-agent aerial simulation (agents swap positions on a circle) | `NUM_AGENTS` (default: 10) |
   | `make run-gazebo` | Run single-agent Gazebo simulation | `GOAL_X`, `GOAL_Y`, `GOAL_Z`, `ENV` — all optional; unset means the same defaults as the native command (hard_forest, goal 305 0 3) |
-  | `make run-ground-swap` | 10 ground robots exchanging positions in Gazebo (sensorless P3AT models, ≥ 1 m separation floor) | `NUM_AGENTS`, `GOAL_PATTERN` (`random_slot`), `GOAL_STAGGER`, `RADIUS`, `MPC_RATE`, `MPC_HORIZON` — all optional, native defaults when unset |
+  | `make run-ground-swap` | 10 ground robots exchanging positions in Gazebo (sensorless P3AT models, soft ≥ 1 m separation target) | `NUM_AGENTS`, `GOAL_PATTERN` (`random_slot`), `GOAL_STAGGER`, `RADIUS`, `MPC_RATE`, `MPC_HORIZON` — all optional, native defaults when unset |
   | `make run-ground-swap-fake` | Same exchange without Gazebo (colored boxes in RViz — lightest variant) | same as `run-ground-swap` |
   | `make run-mac` | Run multi-agent aerial simulation on Mac (Xpra, browser at localhost:8080) | `NUM_AGENTS` (default: 10) |
   | `make run-mac-ground-swap` | Ground swap on Mac (Xpra, browser at localhost:8080) | `NUM_AGENTS`, `GOAL_PATTERN`, `GOAL_STAGGER`, `RADIUS` |
@@ -589,10 +589,11 @@ in Gazebo, alone or as a coordinated team:
 > additionally gates on every namespace existing as a Gazebo entity, closing
 > the documented spawn-flake trap where a robot drives around invisibly.
 >
-> **The ≥ 1 m separation floor — how it works.** Soft avoidance cannot
-> floor a ten-way crossing: with all path-shaping costs healthy, minima of
-> 0.02–0.27 m were measured at the shared centre. The guarantee is
-> geometric instead, two mechanisms working as a pair
+> **The separation rings — how they work** (as designed and validated
+> before 2026-10-15; see the note above for why the floor is now soft).
+> Soft avoidance alone cannot floor a ten-way crossing: with all
+> path-shaping costs healthy, minima of 0.02–0.27 m were measured at the
+> shared centre. The rings add geometry, two mechanisms working as a pair
 > (`peer_standoff_m` / `peer_static_disc_m`, enabled only by the swap
 > overlay — every other config keeps them off):
 >
@@ -625,12 +626,13 @@ in Gazebo, alone or as a coordinated team:
 > episode per run** (3.4–14.3 s, minima 0.08–0.53 m) — down from 16–21
 > episodes per run before the hardening. The residual event class and the
 > next lever (reserved crossings / speed-scaled rings) are documented
-> future work. The guarantee has an honest
+> future work. The rings have an honest
 > price: every close encounter now costs a park → wall → detour cycle, so
 > fleet throughput at ten simultaneous robots is roughly **2–3× slower**
 > than the old floorless free-for-all, and lower-priority (higher-ID)
-> robots yield more often — that asymmetry is what makes the pattern
-> deadlock-free. Verify any run yourself with
+> robots yield more often. That asymmetry was meant to make the pattern
+> deadlock-free, but with ten robots the two-sided rings could still
+> circular-wait (see the note above). Verify any run yourself with
 > `scripts/separation_probe.py --agents 10 --threshold 1.0`.
 >
 > **Two goal patterns.** The default is the classic simultaneous antipodal

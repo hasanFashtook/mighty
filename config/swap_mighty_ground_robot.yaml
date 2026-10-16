@@ -147,9 +147,12 @@ mighty_node:
         # Parked peers become REAL obstacles: a peer whose eval(now) sits
         # still for ~0.5 s gets a 0.45 m disc of synthetic points stamped
         # into this robot's sensor cloud, so the corridor/A*/heat machinery
-        # walls it off — that is what guarantees the WINNER's clearance when
-        # it passes a standoff-parked loser (J_dyn alone is soft, and the
-        # parked robot's advertised plan claims it is somewhere else).
+        # walls it off — that is what gives the WINNER clearance when it
+        # passes a standoff-parked loser (J_dyn alone is soft, and the
+        # parked robot's advertised plan claims it is somewhere else). It is
+        # no longer a guarantee: seniors now skip parked juniors' rings
+        # (mighty::standoffRing), and the disc is dropped for a passer that
+        # is already close, so clearance rests on planner_Cw/dynamic_weight.
         # Clearance arithmetic: corridor keeps the spline drone_radius
         # (drone_bbox/2 = 0.30) from occupied voxels, so a detour passes at
         # >= disc + 0.30; the barrier's parked-peer hold ring is that minus
