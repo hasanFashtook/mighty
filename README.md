@@ -20,7 +20,7 @@ https://github.com/user-attachments/assets/7c0a8478-f97c-46f0-9495-093d6a831f7d
 
 **Multi-Robot Position Exchange** — ten Pioneer 3-ATs on a 10 m circle each cross once to the diametrically opposite slot and park, avoiding one another through the crowded centre (Gazebo models rendered in RViz; `--mode multiagent-ground-gazebo`):
 
-https://github.com/user-attachments/assets/3ba6d6e5-d580-418c-8fd7-4e6c44b09f75
+https://github.com/user-attachments/assets/904aacdd-48c9-4c54-9393-c2c7fe3f9488
 
 | **Trajectory** | **Forest** |
 | ------------------------- | ------------------------- |
