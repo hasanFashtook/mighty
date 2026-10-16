@@ -80,7 +80,7 @@ mighty_node:
         # Raised to 1.2 once seniors stopped holding for parked juniors
         # (mighty::standoffRing): with that fix the rings no longer floor the
         # separation, so the bubble has to. Measured on single swaps (10 P3ATs,
-        # --max-legs 1, dynamic_weight 1e+5, Gazebo, 2026-10-15): Cw 0.8 ->
+        # one swap each, dynamic_weight 1e+5, Gazebo, 2026-10-15): Cw 0.8 ->
         # closest 0.585 m (44 contacts); 1.0 -> 0.703 m (0); 1.2 -> 0.79 /
         # 0.83 / 1.01 m over three runs (0 contacts, all ten crossed in
         # ~2 min). 1.4 froze robots under the old two-sided rings; not

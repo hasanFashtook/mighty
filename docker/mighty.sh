@@ -95,26 +95,18 @@ elif [ "$MODE" = "exploration-singleagent-ground" ] || \
     fi
 elif [ "$MODE" = "multiagent-ground-fake" ] || \
      [ "$MODE" = "multiagent-ground-gazebo" ]; then
-    # 10-robot ground position exchange: RViz-only (fake) or Gazebo with
-    # sensorless P3AT models. Every knob passes through only when set, so the
-    # bare docker command stays byte-for-byte the native default (antipodal
-    # goals, radius 10, MPC 20 Hz / N=10).
-    #   GOAL_PATTERN=random_slot  — draw goals from the N start slots instead
+    # 10-robot ground position exchange, a single swap: RViz-only (fake) or
+    # Gazebo with sensorless P3AT models. Every knob passes through only when
+    # set, so the bare docker command stays byte-for-byte the native default
+    # (radius 10, MPC 20 Hz / N=10).
     #   GOAL_STAGGER=<sec>        — per-agent goal release stagger
-    #   MAX_LEGS=<n>              — park after n arrivals (1 = a single swap)
     #   RADIUS=<m>                — circle radius
     #   MPC_RATE / MPC_HORIZON    — raise on many-core hosts (e.g. 40 / 20)
     if [ -n "${NUM_AGENTS}" ]; then
         ARGS="$ARGS --num-agents $NUM_AGENTS"
     fi
-    if [ -n "${GOAL_PATTERN}" ]; then
-        ARGS="$ARGS --goal-pattern $GOAL_PATTERN"
-    fi
     if [ -n "${GOAL_STAGGER}" ]; then
         ARGS="$ARGS --goal-stagger $GOAL_STAGGER"
-    fi
-    if [ -n "${MAX_LEGS}" ]; then
-        ARGS="$ARGS --max-legs $MAX_LEGS"
     fi
     if [ -n "${RADIUS}" ]; then
         ARGS="$ARGS --radius $RADIUS"

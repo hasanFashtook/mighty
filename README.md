@@ -71,9 +71,8 @@ workspace is built and run from `~/code/mighty_ws`; Docker commands run from
 | Ground robot in a forest world | `python3 src/mighty/scripts/run_sim.py --mode gazebo --ground-robot -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-robot` |
 | Single UAV, goals clicked in RViz | `python3 src/mighty/scripts/run_sim.py --mode interactive -s ~/code/mighty_ws/install/setup.bash` | `make run-interactive` |
 | Multi-agent UAVs swapping on a circle | `python3 src/mighty/scripts/run_sim.py --mode multiagent -s ~/code/mighty_ws/install/setup.bash` | `make run-multiagent` |
-| **Ground robots swapping on a circle, no Gazebo** (10 Pioneer 3-ATs exchange antipodal positions in RViz; full planner→MPC→unicycle chain; soft ≥ 1 m separation target — see the separation note below) | `python3 src/mighty/scripts/run_sim.py --mode multiagent-ground-fake -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-swap-fake` |
-| **Ground robots swapping on a circle, Gazebo + sensorless models** (same exchange, real P3AT models rendered in RViz; `--goal-pattern random_slot` for continuous traffic) | `python3 src/mighty/scripts/run_sim.py --mode multiagent-ground-gazebo -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-swap` |
-| **Ground robots, a single swap** (the same ten P3ATs cross once to the opposite slot and park — the clean demo; harness scenario `ground-swap-10-gazebo-once`) | `python3 src/mighty/scripts/run_sim.py --mode multiagent-ground-gazebo --max-legs 1 -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-swap MAX_LEGS=1` |
+| **Ground robots swapping on a circle, no Gazebo** (a single swap: 10 Pioneer 3-ATs each cross once to the antipodal slot and park, in RViz; full planner→MPC→unicycle chain; soft ≥ 1 m separation target — see the separation note below) | `python3 src/mighty/scripts/run_sim.py --mode multiagent-ground-fake -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-swap-fake` |
+| **Ground robots swapping on a circle, Gazebo + sensorless models** (the same single swap with real P3AT models rendered in RViz — the demo in the video) | `python3 src/mighty/scripts/run_sim.py --mode multiagent-ground-gazebo -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-swap` |
 | Single UAV through a Gazebo forest | `python3 src/mighty/scripts/run_sim.py --mode gazebo -s ~/code/mighty_ws/install/setup.bash` | `make run-gazebo` |
 
 Useful flags (native): `--no-rviz` for headless, `--env <world>` to pick a world,
@@ -210,10 +209,10 @@ In `run-interactive` mode, send goals from the RViz2 toolbar:
   | `make run-interactive` | Run single agent with manual goal (RViz2 2D Goal Pose) | - |
   | `make run-multiagent` | Run multi-agent aerial simulation (agents swap positions on a circle) | `NUM_AGENTS` (default: 10) |
   | `make run-gazebo` | Run single-agent Gazebo simulation | `GOAL_X`, `GOAL_Y`, `GOAL_Z`, `ENV` — all optional; unset means the same defaults as the native command (hard_forest, goal 305 0 3) |
-  | `make run-ground-swap` | 10 ground robots exchanging positions in Gazebo (sensorless P3AT models, soft ≥ 1 m separation target) | `NUM_AGENTS`, `GOAL_PATTERN` (`random_slot`), `GOAL_STAGGER`, `MAX_LEGS` (`1` = a single swap), `RADIUS`, `MPC_RATE`, `MPC_HORIZON` — all optional, native defaults when unset |
+  | `make run-ground-swap` | 10 ground robots swap positions once in Gazebo (sensorless P3AT models, soft ≥ 1 m separation target) | `NUM_AGENTS`, `GOAL_STAGGER`, `RADIUS`, `MPC_RATE`, `MPC_HORIZON` — all optional, native defaults when unset |
   | `make run-ground-swap-fake` | Same exchange without Gazebo (colored boxes in RViz — lightest variant) | same as `run-ground-swap` |
   | `make run-mac` | Run multi-agent aerial simulation on Mac (Xpra, browser at localhost:8080) | `NUM_AGENTS` (default: 10) |
-  | `make run-mac-ground-swap` | Ground swap on Mac (Xpra, browser at localhost:8080) | `NUM_AGENTS`, `GOAL_PATTERN`, `GOAL_STAGGER`, `MAX_LEGS`, `RADIUS` |
+  | `make run-mac-ground-swap` | Ground swap on Mac (Xpra, browser at localhost:8080) | `NUM_AGENTS`, `GOAL_STAGGER`, `RADIUS` |
   | `make run-mac-interactive` | Run single agent on Mac with manual goal (Xpra, browser at localhost:8080) | - |
   | `make run-mac-gazebo` | Run Gazebo on Mac (Xpra) | `GOAL_X`, `GOAL_Y`, `GOAL_Z`, `ENV` |
   | `make shell` | Open interactive shell for debugging | - |
@@ -425,10 +424,6 @@ python3 src/mighty/scripts/run_sim.py --mode gazebo -s ~/code/mighty_ws/install/
                       swap-multiagent-ground and multiagent-ground; 3 for
                       exploration-multiagent-ground
   --radius, -r        Circle radius for the multiagent formation (default: 10.0)
-  --goal-pattern      Ground swap modes: swap (antipodal, default) or random_slot
-                      (each robot draws its next goal from the N circle slots)
-  --max-legs          Ground swap modes: each robot parks after this many arrivals
-                      (default 0 = keep swapping; 1 = a single swap)
   --goal-stagger      multiagent-ground-fake: per-agent goal-release stagger in
                       seconds (default 0 = all goals released together)
   --mpc-rate          Ground swap modes: mpc_node control rate in Hz (default 20)
@@ -551,7 +546,7 @@ in Gazebo, alone or as a coordinated team:
 | **Autonomous exploration** | One robot explores an unknown `ACL_office` map using frontier detection. | None — self-driven |
 | **Multi-robot exploration** | Three robots explore `ACL_office` together, dividing frontiers between them via MinPos. | None — self-driven |
 | **Forest navigation** | One robot crosses a forest world (e.g. `hard_forest`) to a commanded position. | `--goal X Y Z` |
-| **Position exchange, no Gazebo** | Ten robots on a 10 m circle continuously swap antipodal positions in an obstacle-free RViz world (`--mode multiagent-ground-fake`). | None — goal_monitor drives |
+| **Position exchange, no Gazebo** | Ten robots on a 10 m circle each cross once to the antipodal slot and park, in an obstacle-free RViz world (`--mode multiagent-ground-fake`; `--mode multiagent-ground-gazebo` adds Gazebo models). | None — goal_monitor drives |
 
 > **How the no-Gazebo mode works.** Each robot runs the full real chain —
 > planner → `mpc_node` → `fake_sim`'s unicycle integrator — with RViz as the
@@ -570,10 +565,14 @@ in Gazebo, alone or as a coordinated team:
 > on 2026-10-15, seven robots held in a line through the centre, each
 > inside a neighbour's ring, and never moved again. A senior now ignores a
 > parked junior's ring, which removes the deadlock **and the hard
-> guarantee**: a single swap (`--max-legs 1`, harness scenario
-> `ground-swap-10-gazebo-once`) completes in about 2 minutes with 0
-> contacts and closest approaches of 0.79–1.01 m over three runs. The
-> ≥ 1 m measurements in the Gazebo section below predate that change.
+> guarantee**: a single swap (harness scenarios `ground-swap-10` and
+> `ground-swap-10-gazebo`) completes in about 2–2.5 minutes with 0
+> contacts and closest approaches of 0.79–1.01 m over four Gazebo runs.
+> Both modes now run exactly one swap. Continuous swapping — robots
+> turning straight back on arrival, or drawing random slots — was removed:
+> arrived robots re-entering the centre kept slower, yielding robots from
+> ever finishing. The ≥ 1 m measurements in the Gazebo section below
+> predate these changes.
 
 > **The Gazebo variant** (`--mode multiagent-ground-gazebo`) runs the same
 > exchange with Gazebo in the loop, so RViz shows the actual **P3AT robot
@@ -617,54 +616,28 @@ in Gazebo, alone or as a coordinated team:
 >    timeouts anywhere. (Nearby peers get a body-size disc instead, so a
 >    robot's own A* start is never swallowed by a wall.)
 >
-> Validated on a 48-core host (40 Hz MPC): on the shipping build, the
-> antipodal campaign measured run minima of **1.183 / 1.215 m with zero
-> time below 1 m** (three earlier 900 s runs on the pre-hardening build:
-> 1.155–1.187 m, also zero), all ten robots completing legs.
-> **`random_slot` is hardened, not guaranteed**: its continuous goal churn
-> creates crawl-approach geometries the rings cover less perfectly, and
-> the final 3 × 900 s campaign measured **zero or one brief sub-1 m
-> episode per run** (3.4–14.3 s, minima 0.08–0.53 m) — down from 16–21
-> episodes per run before the hardening. The residual event class and the
-> next lever (reserved crossings / speed-scaled rings) are documented
-> future work. The rings have an honest
-> price: every close encounter now costs a park → wall → detour cycle, so
-> fleet throughput at ten simultaneous robots is roughly **2–3× slower**
-> than the old floorless free-for-all, and lower-priority (higher-ID)
-> robots yield more often. That asymmetry was meant to make the pattern
-> deadlock-free, but with ten robots the two-sided rings could still
-> circular-wait (see the note above). Verify any run yourself with
+> Before 2026-10-15, continuous antipodal campaigns on a 48-core host
+> (40 Hz MPC) measured run minima of 1.155–1.215 m with zero time below
+> 1 m. The rings have an honest price: every close encounter costs a park
+> → wall → detour cycle, and lower-priority (higher-ID) robots yield more
+> often. That asymmetry was meant to make the pattern deadlock-free, but
+> with ten robots the two-sided rings could still circular-wait (see the
+> note above). Verify any run yourself with
 > `scripts/separation_probe.py --agents 10 --threshold 1.0`.
 >
-> **Two goal patterns.** The default is the classic simultaneous antipodal
-> exchange — maximum drama, one big crossing wave. `--goal-pattern
-> random_slot` makes each robot draw its next goal from the ten
-> evenly-spaced circle slots on every arrival instead: traffic spreads
-> organically in space and time, and fleet throughput is far higher than
-> the antipodal wave because encounters are pairwise instead of ten-way
-> (measured 129–160 slot arrivals per 900 s run with every robot
-> progressing; see the separation note above for its floor status). Seeded per-robot (stable across runs; `random_seed` on
-> `goal_monitor.launch.py`), so runs are reproducible. Two mechanics worth
-> knowing: slots double as parking spots, so a goal drawn onto a
-> momentarily-occupied slot is rejected by the planner ("goal in occupied
-> space") — the monitor self-heals by **redrawing after 20 s without
-> progress** (`redraw_stagnation_sec`; redraws are normal traffic
-> management, not failure). Without that redraw, a rejected robot parks
-> and blocks *its* slot for everyone — a measured deadlock chain (one
-> robot pinned 800 s, reproducibly, before the fix). That waiting-out-a-
-> redraw state is also why the planner keeps broadcasting on `/trajs` even
-> when replanning fails: receivers prune agents silent for
-> `traj_lifetime`, and a pruned robot is invisible to every peer's
-> avoidance — the keepalive re-shares the ended trajectory, whose
-> evaluation is the parked position.
+> The planner keeps broadcasting on `/trajs` even when replanning fails:
+> receivers prune agents silent for `traj_lifetime`, and a pruned robot is
+> invisible to every peer's avoidance — the keepalive re-shares the ended
+> trajectory, whose evaluation is the parked position. That is what keeps
+> robots that have finished their swap visible to the ones still crossing.
 >
 > **Where visual "wobble" comes from — measured, not guessed.** A robot
 > driving alone in this mode tracks perfectly: **zero yaw-rate reversals**
 > over full crossings, 2 cm mean cross-track. Under dense traffic the
 > residual weave is the avoidance system working at saturation, not a
 > tracking error — an 11-cell tuning matrix over every path-shaping knob
-> moved nothing outside noise. With the separation floor the worst churn is
-> replaced by queue-and-detour behaviour by construction; for even calmer
+> moved nothing outside noise. The standoff rings replace the worst churn
+> with queue-and-detour behaviour; for even calmer
 > traffic use `--num-agents 5`, `--goal-stagger 2`, or a larger `--radius`.
 >
 > Standing up ten robots exposed and fixed three latent fleet-scale bugs
@@ -1028,8 +1001,8 @@ you're looking at rather than discovering it mid-demo.
 
 **Rare planner crash under rapid goal churn.** One `double free or
 corruption` abort of a planner process was observed in roughly forty
-10-robot swap runs — during a `random_slot` run, whose goal turnover is ~3×
-the antipodal pattern's. The affected robot stops; the other nine continue.
+10-robot continuous-swap runs (a mode since removed), in the run with the
+highest goal turnover. The affected robot stops; the other nine continue.
 Suspected heap race between the goal callback and the replan loop; needs an
 AddressSanitizer session to pin down. If a robot freezes mid-demo, check its
 pane for `process has died`.

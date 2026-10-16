@@ -223,79 +223,31 @@ SCENARIOS = {
         description='5 UAVs swapping antipodal positions '
                     '(README: --mode multiagent --num-agents 5).',
     ),
+    # A single antipodal exchange: every robot crosses once and parks on its
+    # opposite slot (run_sim passes goal_monitor max_legs=1). Ends DONE as soon
+    # as all ten have arrived; continuous swapping was removed after arrived
+    # robots turning straight back jammed the centre while yielding robots
+    # were still crossing.
     'ground-swap-10-gazebo': dict(
         kind='swap',
         mode='multiagent-ground-gazebo',
         extra_args=['--no-rviz'],
         namespaces=[f'NX{i:02d}' for i in range(1, 11)],
-        # Same swap dynamics as ground-swap-10 (same overlay, same goal
-        # machinery); the cap carries over. Startup is heavier: gzserver +
-        # 10 spawns on top of 10 planners/MPCs.
+        # Startup is heavier than ground-swap-10: gzserver + 10 spawns on top
+        # of 10 planners/MPCs.
         cap_s=900.0,
         startup_cap_s=420.0,
         min_swap_legs=1,
+        one_shot=True,
         # Separation reported-not-gated for the same measured reasons as
         # ground-swap-10 (robots are teleported puppets; contacts are counted
         # in metrics via the gazebo contact stream but carry no physics
         # consequence). No min_altitude_m: ground z pinned to spawn z.
         gazebo=True,
-        description='10 sensorless P3ATs swapping antipodal positions on a '
-                    '10 m circle in Gazebo (empty world, models rendered in '
-                    'RViz), time-boxed (README: --mode multiagent-ground-gazebo).',
-    ),
-    # The README validates the antipodal swap at 40 Hz MPC on a many-core host;
-    # the scenario above runs the laptop-safe 20 Hz / horizon-10 defaults. Same
-    # gates; planner logs at info so a stall leaves evidence.
-    'ground-swap-10-gazebo-40hz': dict(
-        kind='swap',
-        mode='multiagent-ground-gazebo',
-        extra_args=['--no-rviz', '--mpc-rate', '40', '--mpc-horizon', '20',
-                    '--log-level', 'info'],
-        namespaces=[f'NX{i:02d}' for i in range(1, 11)],
-        cap_s=900.0,
-        startup_cap_s=420.0,
-        min_swap_legs=1,
-        gazebo=True,
-        description='ground-swap-10-gazebo at the README-validated many-core '
-                    'MPC settings (--mpc-rate 40 --mpc-horizon 20), planner '
-                    'logs at info.',
-    ),
-    # A single antipodal exchange: every robot crosses once and parks on its
-    # opposite slot (goal_monitor max_legs=1). Ends DONE as soon as all ten
-    # have arrived instead of running to the cap; continuous swapping sends
-    # arrived robots back through the centre while yielding robots are still
-    # crossing, which jammed both runs of the scenarios above.
-    'ground-swap-10-gazebo-once': dict(
-        kind='swap',
-        mode='multiagent-ground-gazebo',
-        extra_args=['--no-rviz', '--mpc-rate', '40', '--mpc-horizon', '20',
-                    '--log-level', 'info', '--max-legs', '1'],
-        namespaces=[f'NX{i:02d}' for i in range(1, 11)],
-        cap_s=900.0,
-        startup_cap_s=420.0,
-        min_swap_legs=1,
-        one_shot=True,
-        gazebo=True,
-        description='One antipodal exchange of 10 sensorless P3ATs in Gazebo '
-                    '(--max-legs 1): ends when all ten have crossed and parked.',
-    ),
-    'ground-swap-10-gazebo-random': dict(
-        kind='swap',
-        mode='multiagent-ground-gazebo',
-        extra_args=['--no-rviz', '--goal-pattern', 'random_slot'],
-        namespaces=[f'NX{i:02d}' for i in range(1, 11)],
-        cap_s=900.0,
-        startup_cap_s=420.0,
-        # Random slots: legs vary from adjacent-hop (~6 m) to full crossing
-        # (20 m), mean chord ~12.7 m — arrivals come faster than antipodal,
-        # so require 2 legs. Measured effect vs antipodal: near-weave -32%,
-        # far-weave -28% (the only goal-side change that moved either after
-        # a 13-cell tuning matrix).
-        min_swap_legs=2,
-        gazebo=True,
-        description='10 sensorless P3ATs drawing random goals from the 10 '
-                    'circle slots in Gazebo — organic traffic instead of one '
-                    'simultaneous crossing (README: --goal-pattern random_slot).',
+        description='One antipodal exchange of 10 sensorless P3ATs on a 10 m '
+                    'circle in Gazebo (models rendered in RViz); ends when all '
+                    'ten have crossed and parked (README: --mode '
+                    'multiagent-ground-gazebo).',
     ),
     'ground-swap-10': dict(
         kind='swap',
@@ -304,14 +256,14 @@ SCENARIOS = {
         namespaces=[f'NX{i:02d}' for i in range(1, 11)],
         # One leg = 20 m at v_max 0.5 → 40 s ideal; the MPC's 0.5 m/s² ramp,
         # the 10-way centre crossing, and J_dyn detours realistically make it
-        # 2-4x that, and goals only start ~45 s in. The cap IS the intended
-        # end of a continuous scenario (TIME_BOX_ELAPSED) — generosity costs
-        # wall time, not correctness.
+        # 2-4x that, and goals only start ~45 s in. A single swap ends DONE
+        # once all ten have arrived; the cap only bounds a stuck run.
         cap_s=900.0,
         # First /state ~15 s (NX01's fake_sim); the tenth agent launches at
         # ~28 s and 10 planners + 10 casadi MPCs warm up behind it.
         startup_cap_s=300.0,
         min_swap_legs=1,
+        one_shot=True,
         # Separation is REPORTED, NOT GATED for this scenario (no
         # min_separation_m key — evaluate() skips the gate, mirroring how
         # ESDF clearance is handled for the ground explorer). Measured across
@@ -329,9 +281,10 @@ SCENARIOS = {
         # their spawn z (0.0), so an altitude floor would fail by
         # construction. evaluate() skips the gate when the key is absent.
         gazebo=False,
-        description='10 ground robots swapping antipodal positions on a '
-                    '10 m circle, no Gazebo (fake_sim + MPC unicycle chain), '
-                    'time-boxed (README: --mode multiagent-ground-fake).',
+        description='One antipodal exchange of 10 ground robots on a 10 m '
+                    'circle, no Gazebo (fake_sim + MPC unicycle chain); ends '
+                    'when all ten have crossed (README: --mode '
+                    'multiagent-ground-fake).',
     ),
     'uav-gazebo-hard-forest': dict(
         kind='goal',

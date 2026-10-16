@@ -1101,16 +1101,6 @@ def main():
     )
 
     parser.add_argument(
-        '--goal-pattern',
-        choices=['swap', 'random_slot'],
-        default='swap',
-        help="Ground swap modes: 'swap' = antipodal exchange (all robots cross "
-             "the centre); 'random_slot' = each robot draws its next goal from "
-             "the N start slots on arrival — traffic spreads organically instead "
-             "of one simultaneous centre event."
-    )
-
-    parser.add_argument(
         '--goal-stagger',
         type=float,
         default=0.0,
@@ -1120,14 +1110,6 @@ def main():
              'the cost of occasional visual pass-throughs in the centre '
              '(fake_sim has no physics; separation is reported, not gated). '
              'Use ~5.0 for maximum-separation traffic instead.'
-    )
-
-    parser.add_argument(
-        '--max-legs',
-        type=int,
-        default=0,
-        help='Ground swap modes: each robot stops after this many arrivals and '
-             'parks on its last goal (0 = keep swapping; 1 = a single swap).'
     )
 
     parser.add_argument(
@@ -1370,9 +1352,9 @@ def main():
             rviz_config=rviz_config, config_overlay_file=overlay_file,
             use_rviz=(args.rviz and not args.no_rviz),
             log_level=args.log_level, no_goal=args.no_goal,
-            goal_stagger=args.goal_stagger, goal_pattern=args.goal_pattern,
+            goal_stagger=args.goal_stagger,
             mpc_rate=args.mpc_rate, mpc_horizon=args.mpc_horizon,
-            max_legs=args.max_legs)
+            max_legs=1)  # a single swap: each robot crosses once and parks
         print(f"[INFO] Mode: Ground robot position exchange, NO Gazebo "
               f"(fake_sim + MPC unicycle) with {num} agents (radius={radius})")
         if overlay_file:
@@ -1401,9 +1383,9 @@ def main():
             config_overlay_file=overlay_file,
             use_rviz=(args.rviz and not args.no_rviz),
             log_level=args.log_level, no_goal=args.no_goal,
-            goal_stagger=args.goal_stagger, goal_pattern=args.goal_pattern,
+            goal_stagger=args.goal_stagger,
             mpc_rate=args.mpc_rate, mpc_horizon=args.mpc_horizon,
-            max_legs=args.max_legs)
+            max_legs=1)  # a single swap: each robot crosses once and parks
         print(f"[INFO] Mode: Ground robot position exchange in Gazebo, "
               f"SENSORLESS models (P3AT in RViz) with {num} agents (radius={radius})")
         if overlay_file:
