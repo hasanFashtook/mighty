@@ -35,12 +35,6 @@ check "capture inside x"   "$(( CAPTURE_X >= 25 && CAPTURE_X + CAPTURE_W - 1 <= 
 check "capture inside y"   "$(( CAPTURE_Y >= 71 && CAPTURE_Y + CAPTURE_H - 1 <= 1161 ))" 1
 check "screen measured"    "${SCREEN_W}x${SCREEN_H}" "2000x1200"
 
-# settle_wait: RViz starts before the robots spawn; recording begins once it
-# has had RVIZ_SETTLE_S seconds, so only the remainder is waited out.
-check "settle full"        "$(settle_wait 100 100 15)" 15
-check "settle partial"     "$(settle_wait 100 110 15)" 5
-check "settle done"        "$(settle_wait 100 140 15)" 0
-
 # wait_for_line: RViz may only start after the harness's pre-run teardown
 # (which kills every ROS process, RViz included), signalled by its log line.
 : > "$tmp/log"; ( sleep 1; echo "[run 01] launching ground-swap" >> "$tmp/log" ) &
@@ -60,6 +54,42 @@ check "timeout bounded" "$(( $(date +%s) - t_start <= 3 ))" 1
 # count_robots: distinct NXnn names only.
 check "no robots"          "$(count_robots "name: [ground_plane, sun]")" 0
 check "dedup robots"       "$(count_robots "name: [NX01, NX02, NX01, ground_plane, NX10]")" 3
+
+# wait_for_robots: 0 once every robot exists, 3 on timeout, and 1 as soon as
+# the harness has exited — its verdict, not a spawn timeout, is then the
+# answer. model_states is the only ROS call, stubbed here.
+SPAWN_POLL_S=0.1
+model_states() { echo "name: [ground_plane, NX01, NX02]"; }
+sleep 0.1 & dead=$!; wait "$dead"
+SPAWN_TIMEOUT=30; t_start=$(date +%s)
+wait_for_robots "$dead" >/dev/null; check "harness gone"     "$?" 1
+check "harness gone fast"  "$(( $(date +%s) - t_start <= 2 ))" 1
+sleep 30 & alive=$!
+SPAWN_TIMEOUT=1
+wait_for_robots "$alive" >/dev/null; check "spawn timeout"    "$?" 3
+model_states() { echo "name: [NX01, NX02, NX03, NX04, NX05, NX06, NX07, NX08, NX09, NX10]"; }
+SPAWN_TIMEOUT=30
+wait_for_robots "$alive" >/dev/null; check "all spawned"      "$?" 0
+wait_for_robots ""       >/dev/null; check "no harness (spawn selftest)" "$?" 0
+kill "$alive" 2>/dev/null
+
+# cleanup: the '[record] exit N' line is written by the script itself, after
+# tee has drained, so it is the log's last line even when the container stops
+# the moment the script exits; it still reaches stdout once, and N survives.
+# tmux is stubbed: cleanup runs `tmux kill-server`, harmless only in Docker.
+(
+  RUN_DIR="$tmp/run"; mkdir -p "$RUN_DIR"; unset HOST_UID
+  tmux() { :; }
+  exec 3>&1
+  exec > >(tee -a "$RUN_DIR/record.log") 2>&1
+  TEE_PID=$!
+  trap cleanup EXIT
+  echo "[record] working"
+  exit 4
+) > "$tmp/stdout"
+check "cleanup exit code"  "$?" 4
+check "exit line last"     "$(tail -n 1 "$tmp/run/record.log")" "[record] exit 4; outputs in $tmp/run"
+check "exit line once"     "$(grep -c '^\[record\] exit 4' "$tmp/stdout")" 1
 
 # verdict_exit: 0 pass, 4 fail, 5 missing/unreadable.
 echo '{"passed": true}'  > "$tmp/pass.json"; verdict_exit "$tmp/pass.json" >/dev/null; check "verdict pass" "$?" 0

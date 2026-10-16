@@ -3,9 +3,10 @@
 #
 # Entrypoint of `make record-ground-swap` (docker/Makefile). Inside one
 # container: Xvfb virtual display -> harness run (headless; it owns pass/fail)
-# -> wait until every robot exists in Gazebo -> rviz2 + ffmpeg x11grab ->
-# wait for the harness verdict. No X server, GPU or host network is needed,
-# which is what makes this usable on shared servers.
+# -> rviz2 -> ffmpeg x11grab once RViz has loaded -> wait until every robot
+# exists in Gazebo -> wait for the harness verdict. Recording starts before
+# the robots spawn so the video catches their departure. No X server, GPU or
+# host network is needed, which is what makes this usable on shared servers.
 #
 # Outputs go to /runs/$RUN_TAG and are chowned to HOST_UID:HOST_GID on every
 # exit, because the container runs as root and the run dir is a bind mount.
@@ -39,18 +40,12 @@ CAPTURE_X=40
 CAPTURE_Y=76
 
 RVIZ_SETTLE_S=15   # time RViz needs to load the config and models
+SPAWN_POLL_S=5     # pause between Gazebo model checks
 
 PIDS=()
 FFMPEG_PID=""
 PROBE_PID=""
-
-# Seconds still to wait so RViz has had `min` seconds since `started` (epoch
-# seconds) — RViz starts before the robots spawn, so usually none remain.
-settle_wait() {
-  local started="$1" now="$2" min="$3"
-  local left=$(( min - (now - started) ))
-  echo $(( left > 0 ? left : 0 ))
-}
+TEE_PID=""
 
 # Rewrite an .rviz config for recording: no dock panels and a window that
 # fills the virtual screen. rviz2 (Humble) applies "Hide Left Dock" while
@@ -112,18 +107,27 @@ sys.exit(0 if rec.get("passed") else 4)
 PY
 }
 
-# Block until NUM_ROBOTS robots exist in Gazebo (the same topic the harness
-# gates all_models_spawned on) or SPAWN_TIMEOUT seconds pass. Recording before
-# that would film an empty scene; the spawn flake makes this a real case.
+# One Gazebo model list (the topic the harness gates all_models_spawned on).
+model_states() {
+  timeout 15 ros2 topic echo --once --qos-reliability best_effort \
+    /plug/model_states_plug gazebo_msgs/msg/ModelStates 2>/dev/null || true
+}
+
+# Block until NUM_ROBOTS robots exist in Gazebo: 0 once they do, 3 after
+# SPAWN_TIMEOUT seconds (the spawn flake: gzserver can die before any model
+# is inserted), 1 as soon as HARNESS_PID (optional) has exited — its verdict
+# is then the answer, not a spawn timeout.
 wait_for_robots() {
-  local deadline=$(( $(date +%s) + SPAWN_TIMEOUT )) msg n
+  local harness_pid="${1:-}" deadline=$(( $(date +%s) + SPAWN_TIMEOUT )) n
   while (( $(date +%s) < deadline )); do
-    msg="$(timeout 15 ros2 topic echo --once --qos-reliability best_effort \
-             /plug/model_states_plug gazebo_msgs/msg/ModelStates 2>/dev/null || true)"
-    n="$(count_robots "$msg")"
+    if [[ -n "$harness_pid" ]] && ! kill -0 "$harness_pid" 2>/dev/null; then
+      echo "[record] harness exited before every robot spawned"
+      return 1
+    fi
+    n="$(count_robots "$(model_states)")"
     echo "[record] robots in Gazebo: ${n}/${NUM_ROBOTS}"
     (( n >= NUM_ROBOTS )) && return 0
-    sleep 5
+    sleep "$SPAWN_POLL_S"
   done
   echo "[record] robots never spawned within ${SPAWN_TIMEOUT}s"
   return 3
@@ -144,7 +148,20 @@ cleanup() {
   if [[ -n "${HOST_UID:-}" && -d "$RUN_DIR" ]]; then
     chown -R "${HOST_UID}:${HOST_GID:-$HOST_UID}" "$RUN_DIR"
   fi
-  echo "[record] exit ${code}; outputs in ${RUN_DIR}"
+  local line="[record] exit ${code}; outputs in ${RUN_DIR}"
+  if [[ -n "$TEE_PID" ]]; then
+    # The container stops the moment this script exits, which can kill tee
+    # before it writes this line. Let tee drain (bounded: a stray child may
+    # still hold the pipe), then append the line to the log directly.
+    exec 1>&3 2>&3
+    local i
+    for (( i = 0; i < 30; i++ )); do
+      kill -0 "$TEE_PID" 2>/dev/null || break
+      sleep 0.1
+    done
+    echo "$line" >> "$RUN_DIR/record.log"
+  fi
+  echo "$line"
   exit "$code"
 }
 
@@ -154,7 +171,9 @@ main() {
     return 2
   fi
   mkdir -p "$RUN_DIR"
+  exec 3>&1
   exec > >(tee -a "$RUN_DIR/record.log") 2>&1
+  TEE_PID=$!
   trap 'exit 130' INT
   trap 'exit 143' TERM
   trap 'exit 124' USR1
@@ -190,32 +209,34 @@ main() {
       echo "[record] harness never reported launching; starting RViz anyway"
   fi
 
-  # RViz before the robots spawn, so it is loaded when they appear and the
-  # recording can start before the goals are released.
+  # Record from the moment RViz has loaded, before the robots spawn: goals
+  # are released ~45 s after launch, and waiting for the spawn first cost
+  # the first ~10 s of the crossing.
   write_record_rviz "${MIGHTY_WS}/install/mighty/share/mighty/rviz/${RVIZ_CONFIG}" /tmp/record.rviz
   rviz2 -d /tmp/record.rviz > "$RUN_DIR/rviz.log" 2>&1 & PIDS+=($!)
-  local rviz_started
-  rviz_started="$(date +%s)"
-
-  if [[ -n "$harness_pid" ]]; then
-    wait_for_robots || return 3
-    python3 "${MIGHTY_WS}/src/mighty/scripts/separation_probe.py" \
-      --agents "$NUM_ROBOTS" --threshold 1.0 --duration "$REC_SECONDS" \
-      --tag rec --outdir "$RUN_DIR" > "$RUN_DIR/separation.txt" 2>&1 &
-    PROBE_PID=$!; PIDS+=($PROBE_PID)
-  fi
-
-  sleep "$(settle_wait "$rviz_started" "$(date +%s)" "$RVIZ_SETTLE_S")"
+  sleep "$RVIZ_SETTLE_S"
   ffmpeg -nostdin -loglevel warning \
     -f x11grab -draw_mouse 0 -framerate 30 -video_size "${CAPTURE_W}x${CAPTURE_H}" \
     -t "$REC_SECONDS" -i "${DISPLAY_NUM}+${CAPTURE_X},${CAPTURE_Y}" \
     -map 0:v -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p "$RUN_DIR/rviz_raw.mp4" \
     -map 0:v -vf fps=1/30 "$RUN_DIR/snap_%03d.png" &
   FFMPEG_PID=$!
+  echo "[record] recording started"
+
   if [[ -n "$harness_pid" ]]; then
-    # A run that ends early (one-shot DONE, or an abort) tears the sim down,
-    # RViz included; stop recording then rather than film a black screen.
-    wait -n "$FFMPEG_PID" "$harness_pid"
+    local spawned=0
+    wait_for_robots "$harness_pid" || spawned=$?
+    (( spawned == 3 )) && return 3
+    if (( spawned == 0 )); then
+      python3 "${MIGHTY_WS}/src/mighty/scripts/separation_probe.py" \
+        --agents "$NUM_ROBOTS" --threshold 1.0 --duration "$REC_SECONDS" \
+        --tag rec --outdir "$RUN_DIR" > "$RUN_DIR/separation.txt" 2>&1 &
+      PROBE_PID=$!; PIDS+=($PROBE_PID)
+      # A run that ends early (one-shot DONE, or an abort) tears the sim
+      # down, RViz included; stop recording then rather than film a black
+      # screen. (spawned == 1: the harness has already exited.)
+      wait -n "$FFMPEG_PID" "$harness_pid"
+    fi
     if kill -0 "$FFMPEG_PID" 2>/dev/null; then
       echo "[record] harness finished first — stopping the recording"
       kill -INT "$FFMPEG_PID"
