@@ -41,6 +41,12 @@ check "settle full"        "$(settle_wait 100 100 15)" 15
 check "settle partial"     "$(settle_wait 100 110 15)" 5
 check "settle done"        "$(settle_wait 100 140 15)" 0
 
+# wait_for_line: RViz may only start after the harness's pre-run teardown
+# (which kills every ROS process, RViz included), signalled by its log line.
+: > "$tmp/log"; ( sleep 1; echo "[run 01] launching ground-swap" >> "$tmp/log" ) &
+wait_for_line "$tmp/log" "launching" 5; check "line appears" "$?" 0
+wait_for_line "$tmp/log" "never printed" 1; check "line times out" "$?" 1
+
 # count_robots: distinct NXnn names only.
 check "no robots"          "$(count_robots "name: [ground_plane, sun]")" 0
 check "dedup robots"       "$(count_robots "name: [NX01, NX02, NX01, ground_plane, NX10]")" 3

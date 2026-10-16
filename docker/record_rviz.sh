@@ -68,6 +68,17 @@ write_record_rviz() {
     "$src" > "$dst"
 }
 
+# Block until PATTERN appears in FILE (return 0) or TIMEOUT seconds pass (1).
+wait_for_line() {
+  local file="$1" pattern="$2" timeout="$3" tenths=0
+  while (( tenths < timeout * 10 )); do
+    grep -q -- "$pattern" "$file" 2>/dev/null && return 0
+    sleep 0.1
+    tenths=$(( tenths + 1 ))
+  done
+  return 1
+}
+
 # Number of distinct robot names (NX01..NX99) in a blob of text, e.g. a
 # gazebo_msgs/ModelStates message.
 count_robots() {
@@ -153,18 +164,25 @@ main() {
     return $?
   fi
 
-  # RViz first, so it is loaded by the time the robots spawn and the
+  local harness_pid=""
+  if [[ -z "${SELFTEST:-}" ]]; then
+    python3 "${MIGHTY_WS}/src/mighty/scripts/exploration_test.py" run \
+      --scenario "$SCENARIO" --out "$RUN_DIR" --ros-domain-id "${ROS_DOMAIN_ID:-77}" &
+    harness_pid=$!; PIDS+=($harness_pid)
+    # The harness first tears down any previous sim, killing every ROS
+    # process (RViz too), so RViz may only start once it reports launching.
+    wait_for_line "$RUN_DIR/record.log" "launching" 120 ||
+      echo "[record] harness never reported launching; starting RViz anyway"
+  fi
+
+  # RViz before the robots spawn, so it is loaded when they appear and the
   # recording can start before the goals are released.
   write_record_rviz "${MIGHTY_WS}/install/mighty/share/mighty/rviz/${RVIZ_CONFIG}" /tmp/record.rviz
   rviz2 -d /tmp/record.rviz > "$RUN_DIR/rviz.log" 2>&1 & PIDS+=($!)
   local rviz_started
   rviz_started="$(date +%s)"
 
-  local harness_pid=""
-  if [[ -z "${SELFTEST:-}" ]]; then
-    python3 "${MIGHTY_WS}/src/mighty/scripts/exploration_test.py" run \
-      --scenario "$SCENARIO" --out "$RUN_DIR" --ros-domain-id "${ROS_DOMAIN_ID:-77}" &
-    harness_pid=$!; PIDS+=($harness_pid)
+  if [[ -n "$harness_pid" ]]; then
     wait_for_robots || return 3
     python3 "${MIGHTY_WS}/src/mighty/scripts/separation_probe.py" \
       --agents "$NUM_ROBOTS" --threshold 1.0 --duration "$REC_SECONDS" \
