@@ -42,6 +42,7 @@ RVIZ_SETTLE_S=15   # time RViz needs to load the config and models
 
 PIDS=()
 FFMPEG_PID=""
+PROBE_PID=""
 
 # Seconds still to wait so RViz has had `min` seconds since `started` (epoch
 # seconds) — RViz starts before the robots spawn, so usually none remain.
@@ -66,6 +67,18 @@ write_record_rviz() {
     -e "s/^(  X:) .*/\1 0/" \
     -e "s/^(  Y:) .*/\1 0/" \
     "$src" > "$dst"
+}
+
+# SIGINT child PID and wait for it to exit, but at most TIMEOUT seconds before
+# SIGKILL — the separation probe writes its SUMMARY on SIGINT.
+stop_and_wait() {
+  local pid="$1" timeout="$2" watchdog
+  kill -INT "$pid" 2>/dev/null || return 0
+  ( sleep "$timeout"; kill -KILL "$pid" 2>/dev/null ) & watchdog=$!
+  wait "$pid" 2>/dev/null
+  kill "$watchdog" 2>/dev/null
+  wait "$watchdog" 2>/dev/null
+  return 0
 }
 
 # Block until PATTERN appears in FILE (return 0) or TIMEOUT seconds pass (1).
@@ -123,6 +136,8 @@ cleanup() {
     kill -INT "$FFMPEG_PID"          # SIGINT lets ffmpeg finalize the mp4
     wait "$FFMPEG_PID" 2>/dev/null
   fi
+  # Interrupted runs keep the probe's summary too.
+  [[ -n "$PROBE_PID" ]] && stop_and_wait "$PROBE_PID" 5
   local p
   for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null; done
   tmux kill-server 2>/dev/null       # harness panes, if it was interrupted
@@ -186,7 +201,8 @@ main() {
     wait_for_robots || return 3
     python3 "${MIGHTY_WS}/src/mighty/scripts/separation_probe.py" \
       --agents "$NUM_ROBOTS" --threshold 1.0 --duration "$REC_SECONDS" \
-      --tag rec --outdir "$RUN_DIR" > "$RUN_DIR/separation.txt" 2>&1 & PIDS+=($!)
+      --tag rec --outdir "$RUN_DIR" > "$RUN_DIR/separation.txt" 2>&1 &
+    PROBE_PID=$!; PIDS+=($PROBE_PID)
   fi
 
   sleep "$(settle_wait "$rviz_started" "$(date +%s)" "$RVIZ_SETTLE_S")"
@@ -210,6 +226,10 @@ main() {
   echo "[record] recording finished: ${RUN_DIR}/rviz_raw.mp4"
 
   [[ -n "${SELFTEST:-}" ]] && return 0
+  # A single swap ends long before the probe's --duration; stop it now so it
+  # writes its SUMMARY and sep_rec.json while the run dir is still ours.
+  stop_and_wait "$PROBE_PID" 10
+  PROBE_PID=""
   echo "[record] waiting for the harness verdict"
   wait "$harness_pid" 2>/dev/null
   verdict_exit "$RUN_DIR/run01.json"

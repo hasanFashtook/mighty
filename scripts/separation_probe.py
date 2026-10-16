@@ -19,6 +19,7 @@ traffic):
 import argparse
 import json
 import math
+import signal
 import time
 
 import rclpy
@@ -163,6 +164,16 @@ class SepProbe(Node):
         raise SystemExit(0)
 
 
+def install_shutdown_handlers(node):
+    """Write the SUMMARY on SIGINT/SIGTERM too, not only when --duration
+    expires: a single swap (--max-legs 1) ends long before that, and
+    docker/record_rviz.sh stops the probe when the run ends."""
+    def _finish(signum, frame):
+        node.finish(time.monotonic() - node.t0)
+    signal.signal(signal.SIGINT, _finish)
+    signal.signal(signal.SIGTERM, _finish)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--agents', type=int, default=10)
@@ -174,6 +185,7 @@ def main():
     args = ap.parse_args()
     rclpy.init()
     node = SepProbe(args)
+    install_shutdown_handlers(node)
     try:
         rclpy.spin(node)
     except SystemExit:

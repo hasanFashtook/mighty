@@ -12,7 +12,7 @@ check() {
   if [[ "$2" == "$3" ]]; then echo "ok   $1"; else echo "FAIL $1: expected '$3', got '$2'"; fail=1; fi
 }
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+trap 'kill $(jobs -p) 2>/dev/null; rm -rf "$tmp"' EXIT
 
 # write_record_rviz: no dock panels at all (rviz2 Humble ignores "Hide Left
 # Dock" at startup, so the only way to keep the Displays/Views docks out of
@@ -46,6 +46,16 @@ check "settle done"        "$(settle_wait 100 140 15)" 0
 : > "$tmp/log"; ( sleep 1; echo "[run 01] launching ground-swap" >> "$tmp/log" ) &
 wait_for_line "$tmp/log" "launching" 5; check "line appears" "$?" 0
 wait_for_line "$tmp/log" "never printed" 1; check "line times out" "$?" 1
+
+# stop_and_wait: SIGINT a child and wait for it (the probe writes its summary
+# on SIGINT), but never longer than the timeout.
+( trap 'echo finished > "$tmp/probe_done"; exit 0' INT; while :; do sleep 0.1; done ) &
+child=$!; sleep 0.3
+stop_and_wait "$child" 5; check "graceful child finishes" "$(cat "$tmp/probe_done" 2>/dev/null)" finished
+( trap '' INT; while :; do sleep 0.1; done ) &
+child=$!; sleep 0.3; t_start=$(date +%s)
+stop_and_wait "$child" 1; kill -0 "$child" 2>/dev/null; check "stubborn child killed" "$?" 1
+check "timeout bounded" "$(( $(date +%s) - t_start <= 3 ))" 1
 
 # count_robots: distinct NXnn names only.
 check "no robots"          "$(count_robots "name: [ground_plane, sun]")" 0
