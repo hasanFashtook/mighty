@@ -10,7 +10,7 @@ https://github.com/user-attachments/assets/3e8e5c08-b23c-4e40-af3e-2829b16b2f69
 
 https://github.com/user-attachments/assets/6c2126e1-dd08-44b9-a677-d0603a10f8ec
 
-**Multi-Robot Ground Exploration** — three Pioneer 3-ATs explore an unknown office together. Each drives to the frontier it is best placed for — the one with the fewest teammates closer to it — and shares its map as it goes, so they divide the space instead of re-covering each other's ground:
+**Multi-Robot Ground Exploration** — three Pioneer 3-ATs explore an unknown office together on hardware. Each drives to the frontier it is best placed for — the one with the fewest teammates closer to it — and shares its map as it goes, so they divide the space instead of re-covering each other's ground:
 
 https://github.com/user-attachments/assets/fd6ea7ca-bbe7-4e9d-9cee-c7284c347783
 
