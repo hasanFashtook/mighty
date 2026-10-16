@@ -222,7 +222,7 @@ run-ground-robot:
 # RViz renders the fleet). Antipodal crossing by default; GOAL_PATTERN=random_slot
 # draws each robot's next goal from the N start slots instead. Knobs pass through
 # only when set, so the bare command matches the native default exactly.
-# Usage: make run-ground-swap [NUM_AGENTS=10] [GOAL_PATTERN=random_slot]
+# Usage: make run-ground-swap [NUM_AGENTS=10] [GOAL_PATTERN=random_slot] [MAX_LEGS=1]
 #        [GOAL_STAGGER=2] [RADIUS=10] [MPC_RATE=40] [MPC_HORIZON=20] [DEV=1]
 run-ground-swap:
 	$(XHOST_CMD) && docker run $(PLATFORM_FLAG) -it \
@@ -235,6 +235,7 @@ run-ground-swap:
 				-e MODE=multiagent-ground-gazebo \
 				$(if $(NUM_AGENTS),-e NUM_AGENTS=$(NUM_AGENTS),) \
 				$(if $(GOAL_PATTERN),-e GOAL_PATTERN=$(GOAL_PATTERN),) \
+				$(if $(MAX_LEGS),-e MAX_LEGS=$(MAX_LEGS),) \
 				$(if $(GOAL_STAGGER),-e GOAL_STAGGER=$(GOAL_STAGGER),) \
 				$(if $(RADIUS),-e RADIUS=$(RADIUS),) \
 				$(if $(MPC_RATE),-e MPC_RATE=$(MPC_RATE),) \
@@ -243,7 +244,7 @@ run-ground-swap:
 
 # The no-Gazebo variant: same swap machinery, colored boxes instead of P3AT
 # models (fake_sim + RViz only — lightest way to run the 10-robot demo).
-# Usage: make run-ground-swap-fake [NUM_AGENTS=10] [GOAL_PATTERN=random_slot] [DEV=1]
+# Usage: make run-ground-swap-fake [NUM_AGENTS=10] [GOAL_PATTERN=random_slot] [MAX_LEGS=1] [DEV=1]
 run-ground-swap-fake:
 	$(XHOST_CMD) && docker run $(PLATFORM_FLAG) -it \
 				$(GPU_FLAGS) \
@@ -255,6 +256,7 @@ run-ground-swap-fake:
 				-e MODE=multiagent-ground-fake \
 				$(if $(NUM_AGENTS),-e NUM_AGENTS=$(NUM_AGENTS),) \
 				$(if $(GOAL_PATTERN),-e GOAL_PATTERN=$(GOAL_PATTERN),) \
+				$(if $(MAX_LEGS),-e MAX_LEGS=$(MAX_LEGS),) \
 				$(if $(GOAL_STAGGER),-e GOAL_STAGGER=$(GOAL_STAGGER),) \
 				$(if $(RADIUS),-e RADIUS=$(RADIUS),) \
 				$(if $(MPC_RATE),-e MPC_RATE=$(MPC_RATE),) \
@@ -262,7 +264,7 @@ run-ground-swap-fake:
 				--rm $(IMAGE)
 
 # Ground swap on Mac (Xpra, browser at localhost:8080)
-# Usage: make run-mac-ground-swap [NUM_AGENTS=10] [GOAL_PATTERN=random_slot]
+# Usage: make run-mac-ground-swap [NUM_AGENTS=10] [GOAL_PATTERN=random_slot] [MAX_LEGS=1]
 run-mac-ground-swap:
 	docker run $(PLATFORM_FLAG) -it \
 				$(GPU_FLAGS) \
@@ -274,6 +276,7 @@ run-mac-ground-swap:
 				-e MODE=multiagent-ground-gazebo \
 				$(if $(NUM_AGENTS),-e NUM_AGENTS=$(NUM_AGENTS),) \
 				$(if $(GOAL_PATTERN),-e GOAL_PATTERN=$(GOAL_PATTERN),) \
+				$(if $(MAX_LEGS),-e MAX_LEGS=$(MAX_LEGS),) \
 				$(if $(GOAL_STAGGER),-e GOAL_STAGGER=$(GOAL_STAGGER),) \
 				$(if $(RADIUS),-e RADIUS=$(RADIUS),) \
 				-p 8080:8080 \

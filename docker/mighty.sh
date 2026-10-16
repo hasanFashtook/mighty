@@ -101,6 +101,7 @@ elif [ "$MODE" = "multiagent-ground-fake" ] || \
     # goals, radius 10, MPC 20 Hz / N=10).
     #   GOAL_PATTERN=random_slot  — draw goals from the N start slots instead
     #   GOAL_STAGGER=<sec>        — per-agent goal release stagger
+    #   MAX_LEGS=<n>              — park after n arrivals (1 = a single swap)
     #   RADIUS=<m>                — circle radius
     #   MPC_RATE / MPC_HORIZON    — raise on many-core hosts (e.g. 40 / 20)
     if [ -n "${NUM_AGENTS}" ]; then
@@ -111,6 +112,9 @@ elif [ "$MODE" = "multiagent-ground-fake" ] || \
     fi
     if [ -n "${GOAL_STAGGER}" ]; then
         ARGS="$ARGS --goal-stagger $GOAL_STAGGER"
+    fi
+    if [ -n "${MAX_LEGS}" ]; then
+        ARGS="$ARGS --max-legs $MAX_LEGS"
     fi
     if [ -n "${RADIUS}" ]; then
         ARGS="$ARGS --radius $RADIUS"

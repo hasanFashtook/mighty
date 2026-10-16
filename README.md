@@ -73,6 +73,7 @@ workspace is built and run from `~/code/mighty_ws`; Docker commands run from
 | Multi-agent UAVs swapping on a circle | `python3 src/mighty/scripts/run_sim.py --mode multiagent -s ~/code/mighty_ws/install/setup.bash` | `make run-multiagent` |
 | **Ground robots swapping on a circle, no Gazebo** (10 Pioneer 3-ATs exchange antipodal positions in RViz; full planner→MPC→unicycle chain; soft ≥ 1 m separation target — see the separation note below) | `python3 src/mighty/scripts/run_sim.py --mode multiagent-ground-fake -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-swap-fake` |
 | **Ground robots swapping on a circle, Gazebo + sensorless models** (same exchange, real P3AT models rendered in RViz; `--goal-pattern random_slot` for continuous traffic) | `python3 src/mighty/scripts/run_sim.py --mode multiagent-ground-gazebo -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-swap` |
+| **Ground robots, a single swap** (the same ten P3ATs cross once to the opposite slot and park — the clean demo; harness scenario `ground-swap-10-gazebo-once`) | `python3 src/mighty/scripts/run_sim.py --mode multiagent-ground-gazebo --max-legs 1 -s ~/code/mighty_ws/install/setup.bash` | `make run-ground-swap MAX_LEGS=1` |
 | Single UAV through a Gazebo forest | `python3 src/mighty/scripts/run_sim.py --mode gazebo -s ~/code/mighty_ws/install/setup.bash` | `make run-gazebo` |
 
 Useful flags (native): `--no-rviz` for headless, `--env <world>` to pick a world,
@@ -132,7 +133,7 @@ make build-no-cache
 `make build` clones MIGHTY at the pinned release tag (`MIGHTY_VERSION` in
 `docker/Dockerfile`) and imports every dependency at the commit pinned in
 `mighty.repos`, so the image is reproducible and independent of your working
-tree. Override the tag with `make build MIGHTY_VERSION=v0.0.7`.
+tree. Override the tag with `make build MIGHTY_VERSION=v0.0.8`.
 
 <details>
   <summary><b>Testing local changes in Docker</b></summary>
@@ -209,10 +210,10 @@ In `run-interactive` mode, send goals from the RViz2 toolbar:
   | `make run-interactive` | Run single agent with manual goal (RViz2 2D Goal Pose) | - |
   | `make run-multiagent` | Run multi-agent aerial simulation (agents swap positions on a circle) | `NUM_AGENTS` (default: 10) |
   | `make run-gazebo` | Run single-agent Gazebo simulation | `GOAL_X`, `GOAL_Y`, `GOAL_Z`, `ENV` — all optional; unset means the same defaults as the native command (hard_forest, goal 305 0 3) |
-  | `make run-ground-swap` | 10 ground robots exchanging positions in Gazebo (sensorless P3AT models, soft ≥ 1 m separation target) | `NUM_AGENTS`, `GOAL_PATTERN` (`random_slot`), `GOAL_STAGGER`, `RADIUS`, `MPC_RATE`, `MPC_HORIZON` — all optional, native defaults when unset |
+  | `make run-ground-swap` | 10 ground robots exchanging positions in Gazebo (sensorless P3AT models, soft ≥ 1 m separation target) | `NUM_AGENTS`, `GOAL_PATTERN` (`random_slot`), `GOAL_STAGGER`, `MAX_LEGS` (`1` = a single swap), `RADIUS`, `MPC_RATE`, `MPC_HORIZON` — all optional, native defaults when unset |
   | `make run-ground-swap-fake` | Same exchange without Gazebo (colored boxes in RViz — lightest variant) | same as `run-ground-swap` |
   | `make run-mac` | Run multi-agent aerial simulation on Mac (Xpra, browser at localhost:8080) | `NUM_AGENTS` (default: 10) |
-  | `make run-mac-ground-swap` | Ground swap on Mac (Xpra, browser at localhost:8080) | `NUM_AGENTS`, `GOAL_PATTERN`, `GOAL_STAGGER`, `RADIUS` |
+  | `make run-mac-ground-swap` | Ground swap on Mac (Xpra, browser at localhost:8080) | `NUM_AGENTS`, `GOAL_PATTERN`, `GOAL_STAGGER`, `MAX_LEGS`, `RADIUS` |
   | `make run-mac-interactive` | Run single agent on Mac with manual goal (Xpra, browser at localhost:8080) | - |
   | `make run-mac-gazebo` | Run Gazebo on Mac (Xpra) | `GOAL_X`, `GOAL_Y`, `GOAL_Z`, `ENV` |
   | `make shell` | Open interactive shell for debugging | - |
