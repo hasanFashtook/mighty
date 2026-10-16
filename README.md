@@ -4,19 +4,23 @@ If you like this project, please consider starring ⭐ the repo!
 
 **Accepted to the IEEE Robotics and Automation Letters (RA-L)**
 
-<video src="https://github.com/user-attachments/assets/a5127ce3-6662-4b5f-8ca6-2f84f38fddf8" width="100%" autoplay loop muted playsinline controls></video>
+https://github.com/user-attachments/assets/3e8e5c08-b23c-4e40-af3e-2829b16b2f69
 
 **Multi-Agent Trajectory Planning** — multiple aerial agents arranged on a circle swap to diametrically opposite positions, avoiding one another in real time:
 
-<video src="https://github.com/user-attachments/assets/25ebadb2-050c-4762-81df-80c962d652d5" width="100%" autoplay loop muted playsinline controls></video>
+https://github.com/user-attachments/assets/6c2126e1-dd08-44b9-a677-d0603a10f8ec
 
-**Ground Robot Deployment** — a single Pioneer 3-AT on hardware and in simulation, both autonomously exploring an unknown space and navigating to a commanded goal:
+**Multi-Robot Ground Exploration** — three Pioneer 3-ATs explore an unknown office together on hardware. Each drives to the frontier it is best placed for — the one with the fewest teammates closer to it — and shares its map as it goes, so they divide the space instead of re-covering each other's ground:
 
-<video src="https://github.com/user-attachments/assets/15bed70e-f922-44c7-9df2-51693ad33bb7" width="100%" autoplay loop muted playsinline controls></video>
+https://github.com/user-attachments/assets/fd6ea7ca-bbe7-4e9d-9cee-c7284c347783
 
-**Multi-Robot Ground Exploration** — three Pioneer 3-ATs explore an unknown office together. Each drives to the frontier it is best placed for — the one with the fewest teammates closer to it — and shares its map as it goes, so they divide the space instead of re-covering each other's ground:
+**Multi-Robot Ground Hardware** — ground robots exchanging positions on hardware, avoiding one another in real time:
 
-<video src="https://github.com/user-attachments/assets/REPLACE-WITH-ASSET-ID" width="100%" autoplay loop muted playsinline controls></video>
+https://github.com/user-attachments/assets/11b925d1-c622-4e19-b1c1-41ae282e5f9c
+
+**Multi-Robot Position Exchange** — ten Pioneer 3-ATs on a 10 m circle each cross once to the diametrically opposite slot and park, avoiding one another through the crowded centre (Gazebo models rendered in RViz; `--mode multiagent-ground-gazebo`):
+
+https://github.com/user-attachments/assets/5369ee5e-ee06-46a7-a2fe-05d38b6f7992
 
 | **Trajectory** | **Forest** |
 | ------------------------- | ------------------------- |
@@ -567,7 +571,7 @@ in Gazebo, alone or as a coordinated team:
 > parked junior's ring, which removes the deadlock **and the hard
 > guarantee**: a single swap (harness scenarios `ground-swap-10` and
 > `ground-swap-10-gazebo`) completes in about 2–3 minutes with 0
-> contacts and closest approaches of 0.79–1.01 m over five Gazebo runs.
+> contacts and closest approaches of 0.78–1.01 m over six Gazebo runs.
 > Both modes now run exactly one swap. Continuous swapping — robots
 > turning straight back on arrival, or drawing random slots — was removed:
 > arrived robots re-entering the centre kept slower, yielding robots from
