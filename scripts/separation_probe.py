@@ -166,7 +166,7 @@ class SepProbe(Node):
 
 def install_shutdown_handlers(node):
     """Write the SUMMARY on SIGINT/SIGTERM too, not only when --duration
-    expires: a single swap (--max-legs 1) ends long before that, and
+    expires: a single swap (goal monitor max_legs=1) ends long before that, and
     docker/record_rviz.sh stops the probe when the run ends."""
     def _finish(signum, frame):
         node.finish(time.monotonic() - node.t0)

@@ -108,6 +108,23 @@ def all_swapped(sc, swap_legs):
     return all(swap_legs.get(a, 0) >= sc['min_swap_legs'] for a in sc['namespaces'])
 
 
+def advance_progress(refs, ns, pos, now, eps):
+    """Make (pos, now) ns's progress reference when it has none yet or has
+    moved more than eps from the last one."""
+    ref = refs.get(ns)
+    if ref is None or math.dist(ref[0][:2], pos[:2]) > eps:
+        refs[ns] = (pos, now)
+
+
+def fleet_stalled(refs, done, now, window_s):
+    """One-shot runs: True when every robot still crossing (seen, not in done)
+    has stood still for longer than window_s. Arrived robots park by design.
+    Watching the primary agent alone missed fleet deadlocks: it usually
+    crosses first and parks, so a jam behind it ran to the time cap."""
+    crossing = [ns for ns in refs if ns not in done]
+    return bool(crossing) and all(now - refs[ns][1] > window_s for ns in crossing)
+
+
 SCENARIOS = {
     'ground-exploration': dict(
         kind='exploration',
@@ -748,6 +765,7 @@ class Monitor:
         # and windowed path-length queries. Decimated to TICK_S so it stays small.
         self._track = deque()
         self._prog_ref = (None, 0.0)     # (pos, t) for no-progress window
+        self._fleet_prog = {}            # one_shot: ns -> (pos, t) of last move
         self._cov_ref = (0.0, 0.0)       # (coverage, t) for no-coverage window
         self._osc_events = []            # timestamps of REAL retargets
         # Diagnostics captured at the moment a stuck predicate trips, so a
@@ -1300,10 +1318,23 @@ class Monitor:
                               and math.dist(pos[:2], home_for(self.sc, self.ns))
                                   <= self.sc['home_tol_m'])
             ref_pos, ref_t = self._prog_ref
-            parked_after_swap = self.sc.get('one_shot') and self.ns in self._one_shot_done
-            if parked_at_home or parked_after_swap:
-                # Standing still at the captured start (or, one-shot, on the
-                # reached goal) is success, not a stall.
+            if self.sc.get('one_shot'):
+                # Judge the whole fleet: robots park on arrival, so the run is
+                # stuck only when none of those still crossing is moving.
+                for a, p_a in self.peer_pos.items():
+                    advance_progress(self._fleet_prog, a, p_a, now,
+                                     self.NO_PROGRESS_EPS_M)
+                if fleet_stalled(self._fleet_prog, self._one_shot_done, now,
+                                 self.NO_PROGRESS_WINDOW_S):
+                    crossing = sorted(set(self._fleet_prog) - self._one_shot_done)
+                    self.stuck_evidence = dict(
+                        window_s=self.NO_PROGRESS_WINDOW_S,
+                        stalled={a: [round(v, 2) for v in self._fleet_prog[a][0]]
+                                 for a in crossing},
+                        arrived=sorted(self._one_shot_done))
+                    return 'STUCK_NO_PROGRESS'
+            elif parked_at_home:
+                # Standing still at the captured start is success, not a stall.
                 self._prog_ref = (pos, now)
             elif math.dist(ref_pos[:2], pos[:2]) > self.NO_PROGRESS_EPS_M:
                 self._prog_ref = (pos, now)

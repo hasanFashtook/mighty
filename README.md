@@ -563,15 +563,16 @@ in Gazebo, alone or as a coordinated team:
 > them sequentially instead), and `config/swap_mighty_ground_robot.yaml`
 > documents every parameter choice with the measurements behind it.
 > Both swap modes keep robots apart with peer standoff rings plus the
-> trajectory optimizer's peer avoidance; `scripts/separation_probe.py` is
-> the verifier. The rings used to make the ≥ 1 m pairwise floor a hard
+> trajectory optimizer's peer avoidance; `scripts/separation_probe.py`
+> measures it. The rings used to make the ≥ 1 m pairwise floor a hard
 > guarantee, but with ten robots they could circular-wait: in 3 of 3 runs
 > on 2026-10-15, seven robots held in a line through the centre, each
 > inside a neighbour's ring, and never moved again. A senior now ignores a
 > parked junior's ring, which removes the deadlock **and the hard
 > guarantee**: a single swap (harness scenarios `ground-swap-10` and
-> `ground-swap-10-gazebo`) completes in about 2–3 minutes with 0
-> contacts and closest approaches of 0.78–1.01 m over six Gazebo runs.
+> `ground-swap-10-gazebo`) completes in about 2–3 minutes with closest
+> approaches of 0.78–1.01 m over six Gazebo runs (0 contacts in the four
+> whose models spawned; see the gzserver crash under Known Issues).
 > Both modes now run exactly one swap. Continuous swapping — robots
 > turning straight back on arrival, or drawing random slots — was removed:
 > arrived robots re-entering the centre kept slower, yielding robots from
@@ -1103,6 +1104,14 @@ into Gazebo ("Spawn service failed. Exiting."), so there is no sensor data — y
 the run still looks successful, because `fake_sim` integrates the commanded
 trajectory whether or not anything is perceiving. If a Gazebo run reaches its
 goal implausibly smoothly, check the launch log for that message.
+
+**`gzserver` can crash before any robot spawns.** In 3 of 15 runs of the
+10-robot Gazebo position exchange, `gzserver` died with a segmentation fault
+(exit code −11) about 47 s after starting, so no robot model ever appeared,
+while `fake_sim` kept every robot swapping on `/state`. The harness fails
+such a run on `all_models_spawned`, and `make -C docker record-ground-swap`
+exits 3. Details and next steps:
+[issue #43](https://github.com/mit-acl/mighty/issues/43).
 
 **`Default goal z is lower than the ground level`** is logged at ERROR severity
 on healthy `--mode interactive` runs. It is one of the few messages loud enough
