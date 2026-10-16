@@ -566,8 +566,8 @@ in Gazebo, alone or as a coordinated team:
 > inside a neighbour's ring, and never moved again. A senior now ignores a
 > parked junior's ring, which removes the deadlock **and the hard
 > guarantee**: a single swap (harness scenarios `ground-swap-10` and
-> `ground-swap-10-gazebo`) completes in about 2–2.5 minutes with 0
-> contacts and closest approaches of 0.79–1.01 m over four Gazebo runs.
+> `ground-swap-10-gazebo`) completes in about 2–3 minutes with 0
+> contacts and closest approaches of 0.79–1.01 m over five Gazebo runs.
 > Both modes now run exactly one swap. Continuous swapping — robots
 > turning straight back on arrival, or drawing random slots — was removed:
 > arrived robots re-entering the centre kept slower, yielding robots from
