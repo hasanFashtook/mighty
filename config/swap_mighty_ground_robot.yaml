@@ -81,10 +81,10 @@ mighty_node:
         # (mighty::standoffRing): with that fix the rings no longer floor the
         # separation, so the bubble has to. Measured on single swaps (10 P3ATs,
         # one swap each, dynamic_weight 1e+5, Gazebo, 2026-10-15): Cw 0.8 ->
-        # closest 0.585 m (44 contacts); 1.0 -> 0.703 m (0); 1.2 -> 0.79 /
-        # 0.83 / 1.01 m over three runs (0 contacts, all ten crossed in
-        # ~2 min). 1.4 froze robots under the old two-sided rings; not
-        # re-measured since.
+        # closest 0.585 m (44 contacts); 1.0 -> 0.703 m (0); 1.2 -> 0.78-1.01 m
+        # over six runs (all ten crossed in 2-3 min; 0 contacts in the four
+        # whose Gazebo models spawned, see issue #43). 1.4 froze robots under
+        # the old two-sided rings; not re-measured since.
         planner_Cw: 1.2
         # The UAV-swap recipe: SMALL bubble, BIG weight (multi_mighty.yaml
         # runs Cw 0.5 = its bbox with weight 1e+4). Measured here: Cw 0.8
@@ -156,10 +156,10 @@ mighty_node:
         # Clearance arithmetic: corridor keeps the spline drone_radius
         # (drone_bbox/2 = 0.30) from occupied voxels, so a detour passes at
         # >= disc + 0.30; the barrier's parked-peer hold ring is that minus
-        # 0.2 (mighty_node.cpp) so the detour can actually clear it and
-        # self-lift the hold. disc 1.0 -> pass 1.3 m, hold ring 1.1 m,
-        # floor ~1.05 m after tracking error. (0.45 disc measured
-        # 2026-08-30: floor 0.017 -> ~0.75, per the same arithmetic.)
+        # 0.15 (mighty_node.cpp) so the detour can actually clear it and
+        # self-lift the hold. disc 1.0 -> pass 1.3 m, hold ring 1.15 m.
+        # (0.45 disc measured 2026-08-30: floor 0.017 -> ~0.75, per the same
+        # arithmetic.)
         peer_static_disc_m: 1.0
 
 

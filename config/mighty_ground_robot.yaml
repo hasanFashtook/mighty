@@ -328,7 +328,7 @@ mighty_node:
         # --- Frontier-Based Exploration ---
         # Detects unexplored frontiers in the 2D occupancy grid and autonomously
         # drives to them. A manual term_goal preempts; exploration resumes after
-        # the manual goal is reached. See plan: snazzy-moseying-donut.md
+        # the manual goal is reached.
         exploration.enabled: true                                # [-] Master switch
         exploration.select_rate_hz: 1.0                          # [Hz] Goal-selection tick
         exploration.default_goal_z: 0.0                          # [m]  z for issued exploration goals

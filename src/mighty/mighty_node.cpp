@@ -3176,7 +3176,7 @@ void MIGHTY_NODE::publishMpcPath() {
   // parked junior (mighty::standoffRing), so the most senior robot of any
   // held cluster proceeds. Its clearance around a parked loser is the
   // planner's ordinary avoidance problem, which makes the floor soft rather
-  // than guaranteed (single swaps: 0.79-1.01 m with the swap overlay's
+  // than guaranteed (single swaps: 0.78-1.01 m with the swap overlay's
   // dynamic_weight / planner_Cw). /trajs modes only, like the yield
   // fallback above.
   if (par_.peer_standoff_m > 0.0 && !par_.expl_use_minpos &&
@@ -3198,7 +3198,7 @@ void MIGHTY_NODE::publishMpcPath() {
     //   * junior checks seniors at peer_standoff_m (1.2): without any ring,
     //     crossings bottom out at 0.02-0.27 m (soft costs cannot floor a
     //     10-way crossing);
-    //   * senior checks juniors at the smaller derived ring (1.1): junior-
+    //   * senior checks juniors at the smaller derived ring (1.15): junior-
     //     only designs broke twice on moving-moving geometry the junior's
     //     forward-path check cannot see — a sideswiped pair reached 0.09 m
     //     and stayed interlocked for the rest of the run (a robot cannot
