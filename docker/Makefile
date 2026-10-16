@@ -388,6 +388,10 @@ run-mac-ground-robot:
 # Usage: make record-ground-swap [IMAGE=...] [OUT_DIR=...] [CPUS=N] [MEM=64g]
 #        [SCENARIO=ground-swap-10-gazebo|ground-swap-10-gazebo-40hz|ground-swap-10-gazebo-once]
 #        [REC_SECONDS=300] [SELFTEST=render|spawn] [SPAWN_TIMEOUT=420]
+#        [CONFIG_DIR=../config]
+# CONFIG_DIR mounts a config/ directory read-only over the image's copies
+# (source tree, where run_sim.py finds the overlays, and the installed base
+# configs), so parameter tuning needs no image rebuild.
 OUT_DIR ?= $(HOME)/data/mighty/runs
 SCENARIO ?= ground-swap-10-gazebo
 MEM ?= 64g
@@ -408,6 +412,7 @@ record-ground-swap:
 	  $(if $(SELFTEST),-e SELFTEST=$(SELFTEST),) \
 	  $(if $(SPAWN_TIMEOUT),-e SPAWN_TIMEOUT=$(SPAWN_TIMEOUT),) \
 	  -v "$$(realpath $(OUT_DIR))":/runs \
+	  $(if $(CONFIG_DIR),-v "$$(realpath $(CONFIG_DIR))":/home/kkondo/code/mighty_ws/src/mighty/config:ro -v "$$(realpath $(CONFIG_DIR))":/home/kkondo/code/mighty_ws/install/mighty/share/mighty/config:ro,) \
 	  --entrypoint /home/kkondo/code/mighty_ws/src/mighty/docker/record_rviz.sh \
 	  $(IMAGE)
 	@echo "[record] container: $(RECORD_NAME)"

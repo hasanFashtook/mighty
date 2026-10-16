@@ -38,8 +38,18 @@ CAPTURE_H=1080
 CAPTURE_X=40
 CAPTURE_Y=76
 
+RVIZ_SETTLE_S=15   # time RViz needs to load the config and models
+
 PIDS=()
 FFMPEG_PID=""
+
+# Seconds still to wait so RViz has had `min` seconds since `started` (epoch
+# seconds) — RViz starts before the robots spawn, so usually none remain.
+settle_wait() {
+  local started="$1" now="$2" min="$3"
+  local left=$(( min - (now - started) ))
+  echo $(( left > 0 ? left : 0 ))
+}
 
 # Rewrite an .rviz config for recording: no dock panels and a window that
 # fills the virtual screen. rviz2 (Humble) applies "Hide Left Dock" while
@@ -143,6 +153,13 @@ main() {
     return $?
   fi
 
+  # RViz first, so it is loaded by the time the robots spawn and the
+  # recording can start before the goals are released.
+  write_record_rviz "${MIGHTY_WS}/install/mighty/share/mighty/rviz/${RVIZ_CONFIG}" /tmp/record.rviz
+  rviz2 -d /tmp/record.rviz > "$RUN_DIR/rviz.log" 2>&1 & PIDS+=($!)
+  local rviz_started
+  rviz_started="$(date +%s)"
+
   local harness_pid=""
   if [[ -z "${SELFTEST:-}" ]]; then
     python3 "${MIGHTY_WS}/src/mighty/scripts/exploration_test.py" run \
@@ -154,22 +171,29 @@ main() {
       --tag rec --outdir "$RUN_DIR" > "$RUN_DIR/separation.txt" 2>&1 & PIDS+=($!)
   fi
 
-  write_record_rviz "${MIGHTY_WS}/install/mighty/share/mighty/rviz/${RVIZ_CONFIG}" /tmp/record.rviz
-  rviz2 -d /tmp/record.rviz > "$RUN_DIR/rviz.log" 2>&1 & PIDS+=($!)
-  sleep 15
+  sleep "$(settle_wait "$rviz_started" "$(date +%s)" "$RVIZ_SETTLE_S")"
   ffmpeg -nostdin -loglevel warning \
     -f x11grab -draw_mouse 0 -framerate 30 -video_size "${CAPTURE_W}x${CAPTURE_H}" \
     -t "$REC_SECONDS" -i "${DISPLAY_NUM}+${CAPTURE_X},${CAPTURE_Y}" \
     -map 0:v -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p "$RUN_DIR/rviz_raw.mp4" \
     -map 0:v -vf fps=1/30 "$RUN_DIR/snap_%03d.png" &
   FFMPEG_PID=$!
+  if [[ -n "$harness_pid" ]]; then
+    # A run that ends early (one-shot DONE, or an abort) tears the sim down,
+    # RViz included; stop recording then rather than film a black screen.
+    wait -n "$FFMPEG_PID" "$harness_pid"
+    if kill -0 "$FFMPEG_PID" 2>/dev/null; then
+      echo "[record] harness finished first — stopping the recording"
+      kill -INT "$FFMPEG_PID"
+    fi
+  fi
   wait "$FFMPEG_PID"
   FFMPEG_PID=""
   echo "[record] recording finished: ${RUN_DIR}/rviz_raw.mp4"
 
   [[ -n "${SELFTEST:-}" ]] && return 0
   echo "[record] waiting for the harness verdict"
-  wait "$harness_pid"
+  wait "$harness_pid" 2>/dev/null
   verdict_exit "$RUN_DIR/run01.json"
 }
 

@@ -35,6 +35,12 @@ check "capture inside x"   "$(( CAPTURE_X >= 25 && CAPTURE_X + CAPTURE_W - 1 <= 
 check "capture inside y"   "$(( CAPTURE_Y >= 71 && CAPTURE_Y + CAPTURE_H - 1 <= 1161 ))" 1
 check "screen measured"    "${SCREEN_W}x${SCREEN_H}" "2000x1200"
 
+# settle_wait: RViz starts before the robots spawn; recording begins once it
+# has had RVIZ_SETTLE_S seconds, so only the remainder is waited out.
+check "settle full"        "$(settle_wait 100 100 15)" 15
+check "settle partial"     "$(settle_wait 100 110 15)" 5
+check "settle done"        "$(settle_wait 100 140 15)" 0
+
 # count_robots: distinct NXnn names only.
 check "no robots"          "$(count_robots "name: [ground_plane, sun]")" 0
 check "dedup robots"       "$(count_robots "name: [NX01, NX02, NX01, ground_plane, NX10]")" 3
