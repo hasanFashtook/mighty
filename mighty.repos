@@ -1,38 +1,44 @@
 repositories:
-  # ROS 2 dependencies (build with colcon in mighty_ws)
+  # ==============================================================================
+  # MIGHTY ROS 2 Lyrical (Ubuntu 26.04) & Gazebo Sim (Harmonic) Dependencies
+  # ==============================================================================
+
+  # Mapping pipeline (synchronized sim clocks, SensorDataQoS, GCC 15 ported)
   acl-mapping:
     type: git
-    url: https://gitlab.com/mit-acl/lab/acl-mapping.git
-    version: 0d3875daf29d163a35c19d356c4652a749ed501d
+    url: https://github.com/hasanFashtook/acl-mapping.git
+    version: ros2-lyrical
+
+  # Convex decomposition library (C++20 & GCC 15 ported)
+  DecompROS2:
+    type: git
+    url: https://github.com/hasanFashtook/DecompROS2.git
+    version: ros2-lyrical
+
+  # Simulation sensors & map generator utilities (GCC 15 ported)
+  uav_simulator:
+    type: git
+    url: https://github.com/hasanFashtook/uav_simulator.git
+    version: ros2-lyrical
+
+  # Custom ROS 2 message definitions
   dynus_interfaces:
     type: git
     url: https://github.com/kotakondo/dynus_interfaces.git
     version: 628a682c6a12b07fb2be7cffb4782ccdfe5b323d
-  gazebo_ros_pkgs:
-    type: git
-    url: https://github.com/kotakondo/gazebo_ros_pkgs.git
-    version: ed1f7b886971d7bf898e6e0f59c622df929c0521
-  livox_laser_simulation_ros2:
-    type: git
-    url: https://github.com/kotakondo/livox_laser_simulation_ros2.git
-    version: 2f0024c1aebae0ad5d54e70672af824e8fd37dba
-  realsense_gazebo_plugin:
-    type: git
-    url: https://github.com/kotakondo/realsense_gazebo_plugin.git
-    version: 8c357e69da2160f54328db70915bd9b28eb975bf
-  uav_simulator:
-    type: git
-    url: https://github.com/kotakondo/uav_simulator.git
-    version: d4e953b716789bbb2a687eb4a49fe85d58bc03bc
 
-  # Decomp (built in decomp_ws — decomp_util first, then the rest)
-  DecompROS2:
-    type: git
-    url: https://github.com/kotakondo/DecompROS2.git
-    version: a2bc42ed46bf934323994706f17af8a3883860ea
+  # ==============================================================================
+  # Note on Gazebo Classic Dependencies:
+  # The following legacy Gazebo Classic packages are NO LONGER NEEDED in ROS 2 Lyrical:
+  #   - gazebo_ros_pkgs (replaced by ros-lyrical-ros-gz-sim & ros_gz_bridge)
+  #   - livox_laser_simulation_ros2 (replaced by native Gz Sim GPU LiDAR sensor)
+  #   - realsense_gazebo_plugin (omitted in favor of native GPU LiDAR)
+  #
+  # Native simulation packages are installed via apt:
+  #   sudo apt install -y ros-lyrical-ros-gz-sim ros-lyrical-ros-gz-bridge ros-lyrical-ros-gz-interfaces
+  # ==============================================================================
 
-  # Livox dependencies (special build — Livox-SDK2 cmake-installed,
-  # livox_ros_driver2 built in livox_ws via its own build.sh)
+  # Hardware-only Livox dependencies (Optional: only needed when testing on physical drone)
   livox_ros_driver2:
     type: git
     url: https://github.com/kotakondo/livox_ros_driver2.git
