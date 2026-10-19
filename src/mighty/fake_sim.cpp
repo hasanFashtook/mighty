@@ -13,8 +13,8 @@
 
 #include <Eigen/StdVector>
 
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.hpp>
+#include <tf2_ros/transform_listener.hpp>
 
 #include "rclcpp/callback_group.hpp"
 #include "rclcpp/executors/multi_threaded_executor.hpp"
@@ -22,15 +22,16 @@
 
 #include "dynus_interfaces/msg/goal.hpp"
 #include "dynus_interfaces/msg/state.hpp"
-#include "gazebo_msgs/msg/entity_state.hpp"
-#include "gazebo_msgs/srv/set_entity_state.hpp"
+
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "nav_msgs/msg/odometry.hpp"
-#include "tf2/LinearMath/Quaternion.h"
-#include "tf2_ros/transform_broadcaster.h"
+#include "tf2/LinearMath/Quaternion.hpp"
+#include "tf2_ros/transform_broadcaster.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include "ros_gz_interfaces/srv/set_entity_pose.hpp"
+#include "ros_gz_interfaces/msg/entity.hpp"
 
 using namespace std::chrono_literals;
 
@@ -165,16 +166,14 @@ class FakeSim : public rclcpp::Node {
     timer_ = this->create_wall_timer(10ms, std::bind(&FakeSim::pubCallback, this), cb_group_me_1_);
 
     // Gazebo service client
-    gazebo_client_ =
-        this->create_client<gazebo_msgs::srv::SetEntityState>("/plug/set_entity_state");
+    this->declare_parameter<std::string>("gazebo_set_entity_srv", "/world/default/set_pose");
+    auto gazebo_srv = this->get_parameter("gazebo_set_entity_srv").as_string();
     if (send_state_to_gazebo_) {
-      while (!gazebo_client_->wait_for_service(10s)) {
-        RCLCPP_INFO(this->get_logger(), "Gazebo service not available, waiting again...");
+      gazebo_client_ = this->create_client<ros_gz_interfaces::srv::SetEntityPose>(gazebo_srv);
+      while (rclcpp::ok() && !gazebo_client_->wait_for_service(1s)) {
+        RCLCPP_INFO(this->get_logger(), "Gazebo service '%s' not available, waiting...", gazebo_srv.c_str());
       }
     }
-
-    // Delay before sending the initial state to Gazebo
-    if (send_state_to_gazebo_) std::thread(&FakeSim::sendGazeboState, this).detach();
 
     // Flag to publish drone marker
     publish_marker_drone_ = (visual_level > 0);
@@ -183,6 +182,11 @@ class FakeSim : public rclcpp::Node {
     std::this_thread::sleep_for(5s);
     state_.header.stamp = this->get_clock()->now();
     pub_state_->publish(state_);
+
+    // Initial pose in Gazebo
+    if (send_state_to_gazebo_) {
+      sendGazeboState();
+    }
 
     // Also publish initial odom if enabled
     if (publish_odom_) {
@@ -209,7 +213,7 @@ class FakeSim : public rclcpp::Node {
 
   rclcpp::Subscription<dynus_interfaces::msg::Goal>::SharedPtr sub_goal_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_cmd_vel_;
-  rclcpp::Client<gazebo_msgs::srv::SetEntityState>::SharedPtr gazebo_client_;
+  rclcpp::Client<ros_gz_interfaces::srv::SetEntityPose>::SharedPtr gazebo_client_;
   rclcpp::TimerBase::SharedPtr timer_;
 
   dynus_interfaces::msg::State state_;
@@ -304,27 +308,6 @@ class FakeSim : public rclcpp::Node {
     state_.quat.z = w_q_b.z();
   }
 
-  void sendGazeboState() {
-    auto request = std::make_shared<gazebo_msgs::srv::SetEntityState::Request>();
-    request->state.name = ns_;
-
-    request->state.pose.position.x = state_.pos.x;
-    request->state.pose.position.y = state_.pos.y;
-    request->state.pose.position.z = state_.pos.z;
-    request->state.pose.orientation.x = state_.quat.x;
-    request->state.pose.orientation.y = state_.quat.y;
-    request->state.pose.orientation.z = state_.quat.z;
-    request->state.pose.orientation.w = state_.quat.w;
-
-    auto future = gazebo_client_->async_send_request(request);
-
-    try {
-      (void)future.get();
-    } catch (const std::exception&) {
-      // Keep silent (same behavior as your original code)
-    }
-  }
-
   void getTransformStamped() {
     t_.header.stamp = this->get_clock()->now();
 
@@ -412,9 +395,9 @@ class FakeSim : public rclcpp::Node {
       pub_marker_drone_->publish(getDroneMarker());
     }
 
-    // Send the state to Gazebo
+    // Send state to Gazebo
     if (send_state_to_gazebo_) {
-      std::thread(&FakeSim::sendGazeboState, this).detach();
+      sendGazeboState();
     }
 
     // Publish the state (disabled for ground robots - convert_odom_to_state publishes actual state)
@@ -422,6 +405,25 @@ class FakeSim : public rclcpp::Node {
       state_.header.stamp = this->get_clock()->now();
       pub_state_->publish(state_);
     }
+  }
+
+  void sendGazeboState() {
+    if (!gazebo_client_ || !gazebo_client_->service_is_ready()) {
+      return;
+    }
+    auto request = std::make_shared<ros_gz_interfaces::srv::SetEntityPose::Request>();
+    request->entity.name = ns_;
+    request->entity.type = ros_gz_interfaces::msg::Entity::MODEL;
+
+    request->pose.position.x = state_.pos.x;
+    request->pose.position.y = state_.pos.y;
+    request->pose.position.z = state_.pos.z;
+    request->pose.orientation.x = state_.quat.x;
+    request->pose.orientation.y = state_.quat.y;
+    request->pose.orientation.z = state_.quat.z;
+    request->pose.orientation.w = state_.quat.w;
+
+    gazebo_client_->async_send_request(request);
   }
 
   visualization_msgs::msg::Marker getDroneMarker() {

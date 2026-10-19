@@ -6,3 +6,6 @@ CLAUDE.md
 
 # Python cache
 __pycache__/
+
+# Git bundles
+*.bundle

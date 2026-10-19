@@ -14,6 +14,7 @@
     </include>
     <include>
       <uri>model://sun</uri>
+      <name>light</name>
     </include>
     <scene>
       <shadows>0</shadows>

@@ -1,0 +1,20 @@
+# ros_gz_bridge configuration file for MIGHTY UAV simulation
+# Usage: ros2 run ros_gz_bridge parameter_bridge --ros-args -p config_file:=<this_file>
+
+- ros_topic_name: "/clock"
+  gz_topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/NX01/mid360_PointCloud2"
+  gz_topic_name: "/NX01/lidar/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "gz.msgs.PointCloudPacked"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/NX01/imu"
+  gz_topic_name: "/NX01/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: GZ_TO_ROS

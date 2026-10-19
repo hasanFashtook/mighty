@@ -34,6 +34,8 @@ def generate_launch_description():
     parameters = parameters['mighty_node']['ros__parameters']
     default_goal_z = parameters['default_goal_z']
 
+    use_sim_time = (parameters.get('sim_env') == 'gazebo')
+
     return LaunchDescription([
 
         # Declare the launch arguments
@@ -63,6 +65,7 @@ def generate_launch_description():
                 'list_agents': LaunchConfiguration('list_agents'),
                 'list_goals': LaunchConfiguration('list_goals'),
                 'default_goal_z': LaunchConfiguration('default_goal_z'),
+                'use_sim_time': use_sim_time,
             }]
         ),
     ])

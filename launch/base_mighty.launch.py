@@ -92,7 +92,7 @@ def generate_launch_description():
 
         # Choose the world file based on the provided environment.
         world_file = world_mapping.get(env_value, 'easy_forest.world')
-        world_path = PathJoinSubstitution([FindPackageShare('mighty'), 'worlds', world_file])
+        world_path = os.path.join(get_package_share_directory('mighty'), 'worlds', world_file)
 
         use_rviz = convert_str_to_bool(LaunchConfiguration('use_rviz').perform(context))
         use_dyn_obs = convert_str_to_bool(LaunchConfiguration('use_dyn_obs').perform(context))
@@ -125,12 +125,25 @@ def generate_launch_description():
                     parameters=[{'use_sim_time': False}]
                 )
 
-        # Include Gazebo launch file
-        gazebo_launch = IncludeLaunchDescription(
+        # Include Gz Sim launch file
+        gz_gui_flag = '' if convert_str_to_bool(use_gazebo_gui) else '-s '
+        gz_args = f'{gz_gui_flag}-r {world_path}'
+        gz_sim_launch = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                PathJoinSubstitution([FindPackageShare('gazebo_ros'), 'launch', 'gazebo.launch.py'])
+                PathJoinSubstitution([FindPackageShare('ros_gz_sim'), 'launch', 'gz_sim.launch.py'])
             ),
-            launch_arguments={'world': world_path, 'use_sim_time': 'false', 'gui': use_gazebo_gui, 'enable_gpu': 'true'}.items()
+            launch_arguments={'gz_args': gz_args, 'on_exit_shutdown': 'true'}.items()
+        )
+
+        # Start ros_gz_bridge with config and set_pose service bridge
+        bridge_config_file = os.path.join(get_package_share_directory('mighty'), 'config', 'ros_gz_bridge.yaml')
+        ros_gz_bridge_node = Node(
+            package='ros_gz_bridge',
+            executable='parameter_bridge',
+            name='ros_gz_bridge',
+            output='screen',
+            arguments=['/world/default/set_pose@ros_gz_interfaces/srv/SetEntityPose@gz.msgs.Pose@gz.msgs.Boolean'],
+            parameters=[{'config_file': bridge_config_file}],
         )
 
         # Dynamic obstacles (optional)
@@ -166,7 +179,7 @@ def generate_launch_description():
         )
 
         # Return launch description
-        nodes_to_start = [gazebo_launch]
+        nodes_to_start = [gz_sim_launch, ros_gz_bridge_node]
         nodes_to_start.append(rviz_node) if use_rviz else None
         nodes_to_start.append(dynamic_obstacles_launch) if use_dyn_obs else None
 

@@ -241,7 +241,6 @@ def generate_multiagent_ground_yaml(setup_bash: Path, agents: list, radius: floa
     # Base station: Gazebo with ground_robot_forest world + RViz (no dynamic obstacles)
     panes.append({
         'shell_command': [
-            'source /usr/share/gazebo/setup.bash',
             'ros2 launch mighty base_mighty.launch.py '
             'use_gazebo_gui:=false use_rviz:=true env:=ground_robot_forest use_ground_robot:=true'
         ]
@@ -330,7 +329,6 @@ def generate_exploration_multiagent_ground_yaml(
     if use_gazebo:
         panes.append({
             'shell_command': [
-                'source /usr/share/gazebo/setup.bash',
                 f'ros2 launch mighty base_mighty.launch.py '
                 f'use_gazebo_gui:=false use_rviz:=true env:={env} use_ground_robot:=true'
             ]
@@ -440,7 +438,6 @@ def generate_swap_multiagent_ground_yaml(
     # Base station: Gazebo world + RViz
     panes.append({
         'shell_command': [
-            'source /usr/share/gazebo/setup.bash',
             f'ros2 launch mighty base_mighty.launch.py '
             f'use_gazebo_gui:=false use_rviz:=true env:={env} use_ground_robot:=true'
         ]
@@ -516,7 +513,6 @@ def generate_dyn_test_yaml(setup_bash: Path, ros_domain_id: int = 7) -> str:
         # Base station with Gazebo + 1 dynamic obstacle
         {
             'shell_command': [
-                'source /usr/share/gazebo/setup.bash',
                 'ros2 launch mighty base_mighty.launch.py use_dyn_obs:=true '
                 'num_dyn_obstacles:=1 dyn_x_min:=3.0 dyn_x_max:=3.0 dyn_y_min:=0.0 dyn_y_max:=0.0 '
                 'use_gazebo_gui:=false use_rviz:=true env:=empty'
@@ -566,7 +562,6 @@ def generate_dyn_test_ground_yaml(setup_bash: Path, ros_domain_id: int = 7) -> s
         # Base station with Gazebo (static obstacles only)
         {
             'shell_command': [
-                'source /usr/share/gazebo/setup.bash',
                 'ros2 launch mighty base_mighty.launch.py '
                 'use_gazebo_gui:=false use_rviz:=true env:=ground_robot_forest use_ground_robot:=true'
             ]
@@ -623,7 +618,6 @@ def generate_dyn_test_ground_mpc_yaml(setup_bash: Path, ros_domain_id: int = 7) 
         # Base station with Gazebo + 1 dynamic obstacle
         {
             'shell_command': [
-                'source /usr/share/gazebo/setup.bash',
                 'ros2 launch mighty base_mighty.launch.py use_dyn_obs:=true '
                 'num_dyn_obstacles:=1 dyn_x_min:=3.0 dyn_x_max:=3.0 dyn_y_min:=0.0 dyn_y_max:=0.0 '
                 'dyn_z_min:=0.3 dyn_z_max:=0.3 dyn_scale_z_min:=0.0 dyn_scale_z_max:=0.0 '
@@ -690,7 +684,6 @@ def generate_gazebo_yaml(setup_bash: Path, goal: tuple, sim_env: str,
         # Base station with Gazebo
         {
             'shell_command': [
-                'source /usr/share/gazebo/setup.bash',
                 f'ros2 launch mighty base_mighty.launch.py '
                 f'use_gazebo_gui:={str(use_gazebo_gui).lower()} use_rviz:={str(use_rviz).lower()} '
                 f'env:={env} use_ground_robot:={str(use_ground_robot).lower()}'
@@ -863,6 +856,12 @@ def main():
         '--dry-run',
         action='store_true',
         help='Print the generated YAML without launching'
+    )
+
+    parser.add_argument(
+        '--detach', '-d',
+        action='store_true',
+        help='Launch simulation in background without attaching tmux'
     )
 
     parser.add_argument(
@@ -1083,10 +1082,11 @@ def main():
         print(f"[INFO] Launching simulation...")
         env = os.environ.copy()
         env['SETUP_BASH'] = str(setup_bash)
-        # Foreground attach — tmuxp creates the session and attaches the
-        # current terminal so the user sees panes immediately and doesn't
-        # need a separate `tmux attach`.
-        subprocess.run(['tmuxp', 'load', temp_yaml_path], env=env, check=True)
+        cmd = ['tmuxp', 'load', '-y']
+        if args.detach:
+            cmd.append('-d')
+        cmd.append(temp_yaml_path)
+        subprocess.run(cmd, env=env, check=True)
     except subprocess.CalledProcessError as e:
         print(f"[ERROR] Failed to launch simulation: {e}", file=sys.stderr)
         sys.exit(1)

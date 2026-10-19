@@ -82,7 +82,7 @@ mighty_node:
 
         # --- Goal ---
         force_goal_z: true                              # [-] Force goal to a fixed height (RViz GUI goals have z=0)
-        default_goal_z: 1.0                             # [m] Default goal altitude when force_goal_z is true
+        default_goal_z: 3.0                             # [m] Default goal altitude when force_goal_z is true
 
         # --- Dynamic Obstacles ---
         obst_max_vel: 0.5                               # [m/s] Expected max velocity of dynamic obstacles
@@ -103,13 +103,13 @@ mighty_node:
         goal_seen_radius: 5.0                           # [m] Distance to stop replanning (too small makes planning very hard)
 
         # --- L-BFGS Optimization Weights ---
-        dynamic_weight: 1e+3                            # [-] Dynamic obstacle avoidance weight
-        time_weight: 5e+2                               # [-] Time cost weight
-        stat_weight: 1e+3                               # [-] Static obstacle weight
-        jerk_weight: 1e-1                               # [-] Jerk smoothness weight
-        dyn_constr_vel_weight: 1e+3                     # [-] Velocity constraint violation weight
-        dyn_constr_acc_weight: 1e+3                     # [-] Acceleration constraint violation weight
-        dyn_constr_jerk_weight: 1e+3                    # [-] Jerk constraint violation weight
+        dynamic_weight: 1.0e+3                            # [-] Dynamic obstacle avoidance weight
+        time_weight: 5.0e+2                               # [-] Time cost weight
+        stat_weight: 1.0e+3                               # [-] Static obstacle weight
+        jerk_weight: 1.0e-1                               # [-] Jerk smoothness weight
+        dyn_constr_vel_weight: 1.0e+3                     # [-] Velocity constraint violation weight
+        dyn_constr_acc_weight: 1.0e+3                     # [-] Acceleration constraint violation weight
+        dyn_constr_jerk_weight: 1.0e+3                    # [-] Jerk constraint violation weight
         planner_Co: 0.1                                 # [m] Collision clearance for static obstacles
         planner_Cw: 1.3                                 # [m] Collision clearance for dynamic obstacles
 
@@ -211,10 +211,10 @@ mighty_node:
         dyn_constr_thrust_weight: 0.0                   # [-] Thrust constraint weight
         num_dyn_obst_samples: 10                        # [-] Dynamic obstacle samples in optimization
         integral_resolution: 8                          # [-] Integral resolution
-        hinge_mu: 1e-2                                  # [-] Hinge loss parameter
+        hinge_mu: 1.0e-2                                  # [-] Hinge loss parameter
         fopt_threshold: 100000.0                        # [-] Optimization success threshold
         init_turn_bf: 80.0                              # [deg] Initial turn buffer
-        f_dec_coeff: 1e-3                               # [-] Armijo step coefficient
+        f_dec_coeff: 1.0e-3                               # [-] Armijo step coefficient
         cautious_factor: 1.0e-6                         # [-] BFGS update threshold
         past: 3                                         # [-] Past iterations for convergence check
         max_linesearch: 64                              # [-] Max backtracking tries

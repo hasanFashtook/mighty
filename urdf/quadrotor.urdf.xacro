@@ -16,17 +16,88 @@
 
     <!-- Note: added $(arg namespace)_ to the name to avoid having multiple sensors with the same name when using multiple agents -->
 
-    <!-- Livox -->
-    <xacro:include filename="$(find ros2_livox_simulation)/urdf/mid360.xacro" />
-    <xacro:mid360 name="$(arg namespace)_livox" namespace="$(arg namespace)" parent="base_link" topic="mid360" >
-      <origin xyz="0 0 0.2" rpy="0 0.3 0"/>
-    </xacro:mid360>
+    <!-- Livox Mid-360 LiDAR link & joint -->
+    <link name="$(arg namespace)_livox">
+      <inertial>
+        <mass value="0.1" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001" />
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <cylinder radius="0.04" length="0.06"/>
+        </geometry>
+      </visual>
+    </link>
 
-    <!-- Forward facing camera (d435)-->
-    <xacro:include filename="$(find mighty)/urdf/_d435.urdf.xacro" />
-    <xacro:sensor_d435 name="$(arg namespace)_d435" topics_ns="$(arg namespace)" range_max_depth="$(arg d435_range_max_depth)" parent="base_link">
-      <origin xyz="0.05 0.0 0" rpy="0 0 0"/>
-    </xacro:sensor_d435>
+    <joint name="$(arg namespace)_livox_joint" type="fixed">
+      <origin xyz="0 0 0.2" rpy="0 0.3 0"/>
+      <parent link="base_link"/>
+      <child link="$(arg namespace)_livox"/>
+    </joint>
+
+    <!-- Native Gz Sim GPU LiDAR (Mid-360 equivalent) -->
+    <gazebo reference="$(arg namespace)_livox">
+      <sensor name="gpu_lidar" type="gpu_lidar">
+        <pose relative_to="$(arg namespace)_livox">0 0 0 0 0 0</pose>
+        <topic>/$(arg namespace)/lidar</topic>
+        <update_rate>10</update_rate>
+        <always_on>true</always_on>
+        <visualize>false</visualize>
+        <gz_frame_id>$(arg namespace)/$(arg namespace)_livox</gz_frame_id>
+        <lidar>
+          <scan>
+            <horizontal>
+              <samples>360</samples>
+              <resolution>1</resolution>
+              <min_angle>-3.14159265359</min_angle>
+              <max_angle>3.14159265359</max_angle>
+            </horizontal>
+            <vertical>
+              <samples>32</samples>
+              <resolution>1</resolution>
+              <min_angle>-0.261799</min_angle>
+              <max_angle>0.785398</max_angle>
+            </vertical>
+          </scan>
+          <range>
+            <min>0.1</min>
+            <max>40.0</max>
+            <resolution>0.01</resolution>
+          </range>
+        </lidar>
+      </sensor>
+    </gazebo>
+
+    <!-- Native Gz Sim IMU sensor -->
+    <gazebo reference="base_link">
+      <sensor name="imu" type="imu">
+        <pose relative_to="base_link">0 0 0 0 0 0</pose>
+        <topic>/$(arg namespace)/imu</topic>
+        <update_rate>100</update_rate>
+        <always_on>true</always_on>
+        <visualize>false</visualize>
+        <gz_frame_id>$(arg namespace)/base_link</gz_frame_id>
+        <imu>
+          <angular_velocity>
+            <x><noise type="gaussian"><mean>0.0</mean><stddev>0.0002</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0.0</mean><stddev>0.0002</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0.0</mean><stddev>0.0002</stddev></noise></z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x><noise type="gaussian"><mean>0.0</mean><stddev>0.001</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0.0</mean><stddev>0.001</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0.0</mean><stddev>0.001</stddev></noise></z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+    </gazebo>
+
+    <gazebo>
+      <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu">
+      </plugin>
+    </gazebo>
     
     <!-- Forward facing camera (d435i)-->
     <!-- <xacro:include filename="$(find mighty)/urdf/_d435i.urdf.xacro" />

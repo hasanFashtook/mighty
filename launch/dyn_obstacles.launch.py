@@ -170,12 +170,13 @@ def _spawn_static_block(context):
         )
 
         spawn = Node(
-            package='gazebo_ros',
-            executable='spawn_entity.py',
+            package='ros_gz_sim',
+            executable='create',
             name=f'{entity}_spawn',
             output='screen',
             arguments=[
-                '-entity', entity,
+                '-world', 'default',
+                '-name', entity,
                 '-topic', f'/{entity}/robot_description',
                 '-x', str(x), '-y', str(y), '-z', str(z)
             ]

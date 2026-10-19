@@ -11,9 +11,9 @@ ifeq ($(UNAME_S),Darwin)
 else
   PLATFORM_FLAG =
   GPU ?= true
-  JOBS ?=
+  JOBS ?= 1
   XHOST_CMD = xhost +
-  DISPLAY_ENV = -e DISPLAY=${DISPLAY}
+  DISPLAY_ENV = -e DISPLAY=${DISPLAY} -v /tmp/.X11-unix:/tmp/.X11-unix -e LIBGL_ALWAYS_SOFTWARE=1 -e GALLIUM_DRIVER=llvmpipe
   NETWORK_FLAG = --network=host
 endif
 

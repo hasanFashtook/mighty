@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.16)
 project(mighty)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -13,20 +13,18 @@ endif()
 # avoid Found-related error (ref: https://stackoverflow.com/questions/18327197/opencv-is-considered-to-be-not-found)
 set(decomp_rviz_plugins_FOUND 1)
 
-# Option to disable Gazebo-dependent targets (e.g. on Jetson/ARM64)
-option(BUILD_SIMULATION "Build Gazebo simulation targets" ON)
+# Option to disable Gazebo-dependent targets (e.g. on Jetson/ARM64 or ROS 2 Lyrical Phase 1)
+option(BUILD_SIMULATION "Build Gazebo simulation targets" OFF)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
+find_package(ros_gz_interfaces REQUIRED)
 
-# NOTE: find_package(gazebo) must be called before PCL and other packages.
-# Otherwise jsoncpp-namespaced-targets.cmake (pulled in via
-# ignition-fuel_tools) fails with "JsonCpp::JsonCpp target already exists"
-# because another package has already created the target.
 if(BUILD_SIMULATION)
-  find_package(gazebo REQUIRED)
-  find_package(gazebo_ros REQUIRED)
+  find_package(ros_gz_sim REQUIRED)
+  find_package(ros_gz_bridge REQUIRED)
+  find_package(gz-sim REQUIRED)
 endif()
 
 find_package(rclcpp REQUIRED)
@@ -51,7 +49,7 @@ find_package(tf2_eigen REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(gazebo_msgs REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
 
@@ -74,51 +72,115 @@ add_definitions(${PCL_DEFINITIONS})
 
 # add executables
 add_executable(mighty src/mighty/mighty_node.cpp src/mighty/mighty.cpp src/hgp/hgp_manager.cpp src/hgp/utils.cpp src/hgp/hgp_planner.cpp src/hgp/graph_search.cpp src/mighty/utils.cpp src/mighty/lbfgs_solver.cpp src/mighty/lbfgs_solver_utils.cpp src/mighty/frontier_detector.cpp src/mighty/frontier_manager.cpp)
-target_link_libraries(mighty ${PCL_LIBRARIES})
-ament_target_dependencies(mighty rclcpp example_interfaces dynus_interfaces visualization_msgs Eigen3 decomp_ros_msgs sensor_msgs std_msgs nav_msgs decomp_rviz_plugins decomp_test_node tf2_geometry_msgs tf2 tf2_ros tf2_eigen std_srvs pcl_ros)
+target_link_libraries(mighty
+  ${PCL_LIBRARIES}
+  rclcpp::rclcpp
+  rclcpp_components::component
+  example_interfaces::example_interfaces__rosidl_generator_c
+  example_interfaces::example_interfaces__rosidl_typesupport_c
+  example_interfaces::example_interfaces__rosidl_typesupport_cpp
+  ${dynus_interfaces_TARGETS}
+  ${visualization_msgs_TARGETS}
+  ${decomp_ros_msgs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  ${std_msgs_TARGETS}
+  ${nav_msgs_TARGETS}
+  ${std_srvs_TARGETS}
+  decomp_rviz_plugins::decomp_rviz_plugins
+  tf2_geometry_msgs::tf2_geometry_msgs
+  tf2::tf2
+  tf2_ros::tf2_ros
+  tf2_eigen::tf2_eigen
+  pcl_ros::pcl_ros_tf
+)
 
 # Add odom to state converter
 add_executable(convert_odom_to_state src/mighty/convert_odom_to_state.cpp)
-target_link_libraries(convert_odom_to_state)
-ament_target_dependencies(convert_odom_to_state rclcpp example_interfaces dynus_interfaces visualization_msgs Eigen3 sensor_msgs std_msgs decomp_rviz_plugins decomp_test_node tf2_geometry_msgs tf2 tf2_ros tf2_eigen)
+target_link_libraries(convert_odom_to_state
+  rclcpp::rclcpp
+  ${dynus_interfaces_TARGETS}
+  ${visualization_msgs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  ${std_msgs_TARGETS}
+  decomp_rviz_plugins::decomp_rviz_plugins
+  tf2_geometry_msgs::tf2_geometry_msgs
+  tf2::tf2
+  tf2_ros::tf2_ros
+  tf2_eigen::tf2_eigen
+)
 
 # Add vicon to state converter
 add_executable(convert_vicon_to_state src/mighty/convert_vicon_to_state.cpp)
-target_link_libraries(convert_vicon_to_state)
-ament_target_dependencies(convert_vicon_to_state rclcpp example_interfaces dynus_interfaces visualization_msgs Eigen3 decomp_ros_msgs sensor_msgs std_msgs decomp_rviz_plugins decomp_test_node tf2_geometry_msgs tf2 tf2_ros tf2_eigen)
+target_link_libraries(convert_vicon_to_state
+  rclcpp::rclcpp
+  ${dynus_interfaces_TARGETS}
+  ${visualization_msgs_TARGETS}
+  ${decomp_ros_msgs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  ${std_msgs_TARGETS}
+  decomp_rviz_plugins::decomp_rviz_plugins
+  tf2_geometry_msgs::tf2_geometry_msgs
+  tf2::tf2
+  tf2_ros::tf2_ros
+  tf2_eigen::tf2_eigen
+)
 
 # Add the executable for the lbfgs solver test file
 add_executable(test_lbfgs_solver src/test/test_lbfgs_solver.cpp src/mighty/lbfgs_solver.cpp src/mighty/lbfgs_solver_utils.cpp)
-ament_target_dependencies(test_lbfgs_solver rclcpp example_interfaces dynus_interfaces visualization_msgs Eigen3 decomp_ros_msgs sensor_msgs std_msgs decomp_rviz_plugins decomp_test_node tf2_geometry_msgs)
+target_link_libraries(test_lbfgs_solver
+  rclcpp::rclcpp
+  ${dynus_interfaces_TARGETS}
+  ${visualization_msgs_TARGETS}
+  ${decomp_ros_msgs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  ${std_msgs_TARGETS}
+  decomp_rviz_plugins::decomp_rviz_plugins
+  tf2_geometry_msgs::tf2_geometry_msgs
+)
 
-# Add the fake_sim executable (uses gazebo_msgs only, no Gazebo library needed)
+# Add the fake_sim executable
 add_executable(fake_sim src/mighty/fake_sim.cpp)
-target_link_libraries(fake_sim)
-ament_target_dependencies(fake_sim rclcpp rclcpp_components visualization_msgs dynus_interfaces sensor_msgs gazebo_msgs sensor_msgs tf2 tf2_ros nav_msgs)
+target_link_libraries(fake_sim
+  rclcpp::rclcpp
+  rclcpp_components::component
+  ${visualization_msgs_TARGETS}
+  ${dynus_interfaces_TARGETS}
+  ${sensor_msgs_TARGETS}
+  tf2::tf2
+  tf2_ros::tf2_ros
+  ${nav_msgs_TARGETS}
+  ament_index_cpp::ament_index_cpp
+  ${ros_gz_interfaces_TARGETS}
+)
 
-# Simulation-only targets (require Gazebo, not available on ARM64/Jetson)
+# Simulation-only targets (require Gz Sim)
 if(BUILD_SIMULATION)
   add_executable(convert_velodyne_to_ros_time src/mighty/convert_velodyne_to_ros_time.cpp)
-  target_link_libraries(convert_velodyne_to_ros_time)
-  ament_target_dependencies(convert_velodyne_to_ros_time rclcpp rclcpp_components visualization_msgs dynus_interfaces sensor_msgs gazebo_msgs sensor_msgs tf2 tf2_ros nav_msgs)
+  target_link_libraries(convert_velodyne_to_ros_time
+    rclcpp::rclcpp
+    ${visualization_msgs_TARGETS}
+    ${dynus_interfaces_TARGETS}
+    ${sensor_msgs_TARGETS}
+    tf2_ros::tf2_ros
+    ${nav_msgs_TARGETS}
+  )
 
   add_library(move_model SHARED src/sim/move_model.cpp)
-  target_link_libraries(move_model ${GAZEBO_LIBRARIES})
-  ament_target_dependencies(move_model rclcpp tf2 tf2_ros geometry_msgs)
-
-  add_library(imu_plugin SHARED src/sim/gazebo_ros_imu_sensor.cpp)
-  target_link_libraries(imu_plugin ${GAZEBO_LIBRARIES})
-  ament_target_dependencies(imu_plugin sensor_msgs gazebo_ros)
+  target_link_libraries(move_model
+    gz-sim::core
+    rclcpp::rclcpp
+    tf2_ros::tf2_ros
+    ${geometry_msgs_TARGETS}
+  )
 
   add_executable(dynamic_forest_node src/sim/dynamic_forest_node.cpp)
-  ament_target_dependencies(dynamic_forest_node
-    rclcpp
-    geometry_msgs
-    gazebo_msgs
-    visualization_msgs
-    std_msgs
-    tf2_ros
-    dynus_interfaces
+  target_link_libraries(dynamic_forest_node
+    rclcpp::rclcpp
+    ${geometry_msgs_TARGETS}
+    ${visualization_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    tf2_ros::tf2_ros
+    ${dynus_interfaces_TARGETS}
   )
 endif()
 
@@ -151,7 +213,6 @@ if(BUILD_SIMULATION)
   )
   install(TARGETS
     move_model
-    imu_plugin
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
@@ -181,39 +242,52 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_occ_grid_2d_unknown
     src/test/test_occ_grid_2d_unknown.cpp)
-  ament_target_dependencies(test_occ_grid_2d_unknown
-    rclcpp Eigen3 nav_msgs)
+  target_link_libraries(test_occ_grid_2d_unknown
+    rclcpp::rclcpp
+    ${nav_msgs_TARGETS})
 
   ament_add_gtest(test_frontier_detector
     src/test/test_frontier_detector.cpp
     src/mighty/frontier_detector.cpp)
-  ament_target_dependencies(test_frontier_detector
-    rclcpp Eigen3 nav_msgs)
+  target_link_libraries(test_frontier_detector
+    rclcpp::rclcpp
+    ${nav_msgs_TARGETS})
 
   ament_add_gtest(test_frontier_manager
     src/test/test_frontier_manager.cpp
     src/mighty/frontier_detector.cpp
     src/mighty/frontier_manager.cpp)
-  ament_target_dependencies(test_frontier_manager
-    rclcpp Eigen3 nav_msgs)
+  target_link_libraries(test_frontier_manager
+    rclcpp::rclcpp
+    ${nav_msgs_TARGETS})
 
   ament_add_gtest(test_gradient_check
     src/test/test_gradient_check.cpp
     src/mighty/lbfgs_solver.cpp
     src/mighty/lbfgs_solver_utils.cpp)
-  ament_target_dependencies(test_gradient_check
-    rclcpp example_interfaces dynus_interfaces visualization_msgs Eigen3
-    decomp_ros_msgs sensor_msgs std_msgs decomp_rviz_plugins decomp_test_node
-    tf2_geometry_msgs)
+  target_link_libraries(test_gradient_check
+    rclcpp::rclcpp
+    ${dynus_interfaces_TARGETS}
+    ${visualization_msgs_TARGETS}
+    ${decomp_ros_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    decomp_rviz_plugins::decomp_rviz_plugins
+    tf2_geometry_msgs::tf2_geometry_msgs)
 
   ament_add_gtest(test_formation_cost
     src/test/test_formation_cost.cpp
     src/mighty/lbfgs_solver.cpp
     src/mighty/lbfgs_solver_utils.cpp)
-  ament_target_dependencies(test_formation_cost
-    rclcpp example_interfaces dynus_interfaces visualization_msgs Eigen3
-    decomp_ros_msgs sensor_msgs std_msgs decomp_rviz_plugins decomp_test_node
-    tf2_geometry_msgs)
+  target_link_libraries(test_formation_cost
+    rclcpp::rclcpp
+    ${dynus_interfaces_TARGETS}
+    ${visualization_msgs_TARGETS}
+    ${decomp_ros_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    decomp_rviz_plugins::decomp_rviz_plugins
+    tf2_geometry_msgs::tf2_geometry_msgs)
 endif()
 
 ament_package()

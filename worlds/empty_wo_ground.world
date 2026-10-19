@@ -12,6 +12,7 @@
     <!-- A global light source -->
     <include>
       <uri>model://sun</uri>
+      <name>light</name>
     </include>
   </world>
 </sdf>

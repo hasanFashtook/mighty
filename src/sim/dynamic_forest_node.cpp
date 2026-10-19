@@ -2,11 +2,9 @@
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
-#include <gazebo_msgs/msg/model_state.hpp>
-#include <gazebo_msgs/msg/model_states.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/transform_broadcaster.hpp>
 #include <dynus_interfaces/msg/dyn_traj.hpp>
 
 #include <nlohmann/json.hpp>
@@ -180,18 +178,7 @@ public:
             RCLCPP_WARN(get_logger(), "No external obstacles_json provided; node will be idle.");
         }
 
-        // Optionally adopt spawn origins if desired
-        if (use_spawn_origins_)
-        {
-            model_states_sub_ = create_subscription<gazebo_msgs::msg::ModelStates>(
-                "/gazebo/model_states", 10,
-                std::bind(&DynamicForestNode::modelStatesCB, this, std::placeholders::_1));
-            RCLCPP_INFO(get_logger(), "Waiting to adopt spawn origins from /gazebo/model_states...");
-        }
-
         traj_pub_ = create_publisher<DynTraj>("/trajs", 10);
-        if (move_models_)
-            model_state_pub_ = create_publisher<gazebo_msgs::msg::ModelState>("/gazebo/set_model_state", 50);
 
         if (publish_markers_)
         {
@@ -207,41 +194,6 @@ public:
         timer_ = create_wall_timer(
             std::chrono::duration<double>(period),
             std::bind(&DynamicForestNode::timerCB, this));
-    }
-
-private:
-    // Adopt initial positions from Gazebo model_states if requested
-    void modelStatesCB(const gazebo_msgs::msg::ModelStates::SharedPtr msg)
-    {
-        if (!use_spawn_origins_ || adopted_spawn_)
-            return;
-
-        int matched = 0;
-        for (auto &o : obstacles_)
-        {
-            for (size_t j = 0; j < msg->name.size(); ++j)
-            {
-                if (msg->name[j] == o.model_name)
-                {
-                    o.x0 = msg->pose[j].position.x;
-                    o.y0 = msg->pose[j].position.y;
-                    o.z0 = msg->pose[j].position.z;
-                    matched++;
-                    break;
-                }
-            }
-        }
-        if (matched == static_cast<int>(obstacles_.size()))
-        {
-            adopted_spawn_ = true;
-            RCLCPP_INFO(get_logger(), "Adopted spawn origins for all %d obstacles.", matched);
-        }
-        else
-        {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 3000,
-                                 "Spawn adoption incomplete (%d/%zu). Continuing...",
-                                 matched, obstacles_.size());
-        }
     }
 
     visualization_msgs::msg::Marker makePointsMarker()
@@ -331,17 +283,6 @@ private:
                 tf_broadcaster_->sendTransform(tf);
             }
 
-            if (move_models_)
-            {
-                gazebo_msgs::msg::ModelState ms;
-                ms.model_name = o.model_name;
-                ms.pose.position.x = x;
-                ms.pose.position.y = y;
-                ms.pose.position.z = z;
-                ms.pose.orientation.w = 1.0;
-                model_state_pub_->publish(ms);
-            }
-
             if (publish_markers_)
             {
                 auto marker = makeMeshMarker(idx, o.bbox, x, y, z);
@@ -379,10 +320,8 @@ private:
 
     // ROS infrastructure
     rclcpp::Publisher<DynTraj>::SharedPtr traj_pub_;
-    rclcpp::Publisher<gazebo_msgs::msg::ModelState>::SharedPtr model_state_pub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr dyn_mesh_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr dyn_pts_pub_;
-    rclcpp::Subscription<gazebo_msgs::msg::ModelStates>::SharedPtr model_states_sub_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     rclcpp::TimerBase::SharedPtr timer_;
 };

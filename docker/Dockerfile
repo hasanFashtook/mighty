@@ -44,11 +44,21 @@ RUN mkdir -p ${MIGHTY_WS}/src
 WORKDIR ${MIGHTY_WS}/src
 ARG DUMMY=unknown
 ARG MIGHTY_VERSION=v0.0.6
-RUN DUMMY=${DUMMY} git clone --depth 1 --branch ${MIGHTY_VERSION} https://github.com/mit-acl/mighty.git
+COPY mighty.bundle /tmp/mighty.bundle
+RUN git config --global http.version HTTP/1.1 && \
+    git config --global http.postBuffer 524288000 && \
+    git config --global core.compression 0 && \
+    git config --global http.lowSpeedLimit 1000 && \
+    git config --global http.lowSpeedTime 300 && \
+    git clone /tmp/mighty.bundle mighty && \
+    rm /tmp/mighty.bundle
 
 # Import every dependency (pinned in mighty.repos)
 WORKDIR ${MIGHTY_WS}
-RUN vcs import src < src/mighty/mighty.repos
+RUN for i in 1 2 3 4 5; do \
+        vcs import --workers 1 --retry 3 src < src/mighty/mighty.repos && break || \
+        (echo "vcs import failed, retrying in 5s ($i/5)..." && sleep 5); \
+    done
 
 # Move special-build deps out of mighty_ws into their own trees
 RUN mkdir -p ${DECOMP_WS}/src ${LIVOX_WS}/src && \
@@ -58,36 +68,38 @@ RUN mkdir -p ${DECOMP_WS}/src ${LIVOX_WS}/src && \
 
 SHELL ["/bin/bash", "-c"]
 
-# Build parallelism — for amd64 emulation on Mac, limit with: --build-arg JOBS=4
-ARG JOBS=""
+# Build parallelism — default to 1 to avoid freezing machines with limited RAM
+ARG JOBS=1
 
 # Build DecompROS2 (decomp_util first, then the rest)
 WORKDIR ${DECOMP_WS}
 RUN source /opt/ros/humble/setup.bash && \
     colcon build --packages-select decomp_util \
-                 ${JOBS:+--parallel-workers $JOBS} \
+                 --parallel-workers ${JOBS:-1} \
                  --cmake-args -DCMAKE_BUILD_TYPE=Release
 RUN source /opt/ros/humble/setup.bash && \
     source ${DECOMP_WS}/install/setup.bash && \
-    colcon build ${JOBS:+--parallel-workers $JOBS} \
+    colcon build --parallel-workers ${JOBS:-1} \
                  --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # Build Livox-SDK2 (cmake install to /usr/local)
 WORKDIR ${LIVOX_SDK_DIR}
 RUN mkdir -p build && cd build && \
-    cmake .. && make -j${JOBS:-$(nproc)} && make install
+    cmake .. && make -j${JOBS:-1} && make install
 
 # Build livox_ros_driver2 (uses its own build.sh for package file setup)
 WORKDIR ${LIVOX_WS}/src/livox_ros_driver2
-RUN source /opt/ros/humble/setup.bash && ./build.sh humble
+RUN source /opt/ros/humble/setup.bash && \
+    export MAKEFLAGS="-j${JOBS:-1}" && \
+    ./build.sh humble
 
 # Build the MIGHTY workspace
 WORKDIR ${MIGHTY_WS}
 RUN source /opt/ros/humble/setup.bash && \
     source ${DECOMP_WS}/install/setup.bash && \
     export CMAKE_PREFIX_PATH=${LIVOX_WS}/install/livox_ros_driver2:${DECOMP_WS}/install/decomp_util:${CMAKE_PREFIX_PATH} && \
-    export MAKEFLAGS="-j${JOBS:-$(nproc)}" && \
-    colcon build ${JOBS:+--parallel-workers $JOBS} \
+    export MAKEFLAGS="-j${JOBS:-1}" && \
+    colcon build --parallel-workers ${JOBS:-1} \
                  --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # Gazebo audio fix

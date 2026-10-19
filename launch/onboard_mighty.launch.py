@@ -14,6 +14,7 @@ from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import Command, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue
+import re
 import yaml
 from math import radians
 
@@ -132,6 +133,22 @@ def generate_launch_description():
         # Extract specific node parameters
         parameters = parameters['mighty_node']['ros__parameters']
 
+        def sanitize_params(d):
+            if isinstance(d, dict):
+                return {k: sanitize_params(v) for k, v in d.items()}
+            elif isinstance(d, list):
+                return [sanitize_params(x) for x in d]
+            elif isinstance(d, str):
+                if re.match(r'^[+-]?\d+([.]\d*)?[eE][+-]?\d+$', d):
+                    try:
+                        return float(d)
+                    except ValueError:
+                        pass
+                return d
+            return d
+
+        parameters = sanitize_params(parameters)
+
         # Override sim_env if provided via launch argument
         if sim_env:
             parameters['sim_env'] = sim_env
@@ -150,6 +167,7 @@ def generate_launch_description():
             with open(hw_parameters_path, 'r') as f:
                 hw_params = yaml.safe_load(f)['mighty_node']['ros__parameters']
             parameters.update(hw_params)
+            parameters = sanitize_params(parameters)
 
         # Update parameters for benchmarking
         parameters['file_path'] = data_file
@@ -195,6 +213,8 @@ def generate_launch_description():
         # (raises "got '()' of type 'tuple'"). Drop them so the C++ node falls
         # back to its declared default.
         parameters = {k: v for k, v in parameters.items() if not (isinstance(v, list) and len(v) == 0)}
+        use_sim_time = (parameters.get('sim_env') == 'gazebo')
+        parameters['use_sim_time'] = use_sim_time
 
         # Lidar topic remapping for hardware vs simulation
         lidar_point_cloud_topic = 'livox/lidar' if use_hardware else 'mid360_PointCloud2'
@@ -210,7 +230,7 @@ def generate_launch_description():
                     parameters=[parameters],
                     remappings=[('lidar_cloud_in', lidar_point_cloud_topic),
                                 ('depth_camera_cloud_in', f'{depth_camera_name}/depth/color/points')],
-                    arguments=['--ros-args', '--log-level', 'error'],
+                    arguments=['--ros-args', '--log-level', 'info'],
                     # prefix='xterm -e gdb -q -ex run --args', # gdb debugging
         )
 
@@ -223,24 +243,30 @@ def generate_launch_description():
             namespace=namespace,
             parameters=[{
                 'robot_description': ParameterValue(Command(['xacro ', urdf_path, ' namespace:=', namespace, ' d435_range_max_depth:=', str(parameters['depth_camera_depth_max'])]), value_type=str),
-                'use_sim_time': False,
+                'use_sim_time': use_sim_time,
                 'frame_prefix': namespace + '/',
             }],
             arguments=['--ros-args', '--log-level', 'error']
         )
 
-        # Spawn entity node for Gazebo
+        # Spawn entity node for Gazebo Sim (Harmonic)
         # Get the start position and yaw from the parameters
         yaw = str(radians(float(yaw)))
         spawn_entity_node = Node(
-            package='gazebo_ros',
-            executable='spawn_entity.py',
+            package='ros_gz_sim',
+            executable='create',
             name='spawn_entity',
             namespace=namespace,
-            parameters=[{
-                'use_sim_time': False,
-            }],
-            arguments=['-topic', 'robot_description', '-entity', namespace, '-x', x, '-y', y, '-z', z, '-Y', yaw, '--ros-args', '--log-level', 'error'],
+            arguments=[
+                '-world', 'default',
+                '-topic', f'/{namespace}/robot_description',
+                '-name', namespace,
+                '-x', x,
+                '-y', y,
+                '-z', z,
+                '-Y', yaw
+            ],
+            output='screen',
         )
         
         # Convert pose and twist (from Vicon/mocap) to state
@@ -304,7 +330,8 @@ def generate_launch_description():
                                  "odom_frame_id": odom_frame_id,
                                  "base_frame_id": base_frame_id,
                                  "map_frame_id": map_frame_id,
-                                 "visual_level": 1}],
+                                 "visual_level": 1,
+                                 "use_sim_time": use_sim_time}],
                     output='screen',
         )
 

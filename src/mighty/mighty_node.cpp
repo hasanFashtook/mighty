@@ -275,25 +275,17 @@ MIGHTY_NODE::MIGHTY_NODE() : Node("mighty_node") {
   // Initialize the initial pose topic name
   initial_pose_topic_ = ns_ + "/init_pose";
 
-  if (par_.use_hardware) {
-    // Hardware: subscribe independently (time-sync can fail due to timestamp mismatch)
+  if (par_.use_hardware || par_.sim_env != "fake_sim") {
+    // Hardware or Gazebo: subscribe independently (time-sync can fail due to timestamp mismatch)
+    auto map_qos = rclcpp::SensorDataQoS();
     sub_occupancy_grid_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-        "occupancy_grid",
-        rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_sensor_data)),
+        "occupancy_grid", map_qos,
         std::bind(&MIGHTY_NODE::occupancyMapCallback, this, std::placeholders::_1), options_map);
     sub_unknown_grid_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-        "unknown_grid",
-        rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_sensor_data)),
+        "unknown_grid", map_qos,
         std::bind(&MIGHTY_NODE::unknownMapCallback, this, std::placeholders::_1), options_map);
     RCLCPP_INFO(this->get_logger(),
-                "Hardware mode: subscribing to occupancy_grid and unknown_grid independently");
-  } else if (par_.sim_env != "fake_sim") {
-    // Gazebo sim: synchronize the occupancy grid and unknown grid
-    occup_grid_sub_.subscribe(this, "occupancy_grid", rmw_qos_profile_sensor_data, options_map);
-    unknown_grid_sub_.subscribe(this, "unknown_grid", rmw_qos_profile_sensor_data, options_map);
-    sync_.reset(new Sync(MySyncPolicy(10), occup_grid_sub_, unknown_grid_sub_));
-    sync_->registerCallback(
-        std::bind(&MIGHTY_NODE::mapCallback, this, std::placeholders::_1, std::placeholders::_2));
+                "Subscribing to occupancy_grid and unknown_grid independently with SensorDataQoS");
   } else {
     sub_fake_sim_occupancy_map_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
         "sensor_point_cloud",
