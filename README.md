@@ -52,14 +52,86 @@ The full video is available at [https://youtu.be/Pvb-VPUdLvg](https://youtu.be/P
 
 ## Installation
 
-MIGHTY has been tested on Ubuntu 22.04 with ROS 2 Humble. Four installation methods are available:
+MIGHTY is available for both **ROS 2 Lyrical / Ubuntu 26.04** (via modern Gazebo Harmonic) and **ROS 2 Humble / Ubuntu 22.04**.
 
 | Method | Platform | Notes |
 |--------|----------|-------|
-| [Docker (Linux)](#docker-installation-linux) | Linux | Uses Docker Engine (apt install, **not** Docker Desktop) |
+| [Native (ROS 2 Lyrical & Gazebo Harmonic)](#native-installation-ros-2-lyrical--gazebo-harmonic) | Ubuntu 26.04 / Modern ROS 2 | **Recommended for this branch**. Uses Gazebo Harmonic (Gz Sim) & VCS repos |
+| [Docker (Linux)](#docker-installation-linux) | Linux (Ubuntu 22.04) | Legacy ROS 2 Humble Docker setup |
 | [Docker (Mac)](#docker-installation-mac) | macOS (Apple Silicon / Intel) | Uses Docker Desktop; Xpra for browser-based visualization |
-| [Native (Linux)](#native-installation-linux) | Ubuntu 22.04 | Best for development and hardware deployment |
+| [Native (Linux - ROS 2 Humble)](#native-installation-linux) | Ubuntu 22.04 | Legacy ROS 2 Humble setup via `setup.sh` |
 | [Jetson](#jetson-setup) | NVIDIA Jetson (Orin Nano, etc.) | ARM64 build; skips Gazebo, limits parallelism for low RAM |
+
+---
+
+### Native Installation (ROS 2 Lyrical & Gazebo Harmonic)
+
+> **Branch:** `001-gz-sim-harmonic-integration`  
+> This branch provides full compatibility with **ROS 2 Lyrical (Ubuntu 26.04)** and **Gazebo Harmonic (Gz Sim)**.
+
+#### 1. System Dependencies
+
+Make sure ROS 2 Lyrical and VCS tools are installed:
+
+```bash
+sudo apt update
+sudo apt install -y python3-vcstool python3-colcon-common-extensions tmux tmuxp
+```
+
+#### 2. Workspace Setup & Cloning
+
+Create a workspace directory and clone this branch:
+
+```bash
+mkdir -p ~/code/mighty_lyrical_ws/src
+cd ~/code/mighty_lyrical_ws
+
+# Clone main package
+git clone -b 001-gz-sim-harmonic-integration https://github.com/hasanFashtook/mighty.git src/mighty
+```
+
+#### 3. Import Dependencies via VCS
+
+Import all modified dependencies (`DecompROS2`, `uav_simulator`, `acl-mapping`) pinned to their ROS 2 Lyrical branches:
+
+```bash
+vcs import src < src/mighty/mighty.repos
+```
+
+#### 4. Build Workspace
+
+Build the workspace with simulation enabled:
+
+```bash
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_SIMULATION=ON --symlink-install
+```
+
+#### 5. Source Environment
+
+```bash
+source install/setup.bash
+```
+
+#### 6. Run Simulations (Gazebo Harmonic / Gz Sim)
+
+Use `run_sim.py` to launch simulations:
+
+```bash
+# 1. Single-agent Gazebo simulation (hard forest environment)
+python3 src/mighty/scripts/run_sim.py --mode gazebo -s install/setup.bash --gazebo-gui
+
+# 2. Dynamic forest environment with moving obstacles
+python3 src/mighty/scripts/run_sim.py --mode gazebo --env dynamic_forest --num-obstacles 5 -s install/setup.bash --gazebo-gui
+
+# 3. Gazebo with custom start and goal positions
+python3 src/mighty/scripts/run_sim.py --mode gazebo -s install/setup.bash --gazebo-gui --start 0 0 3 --goal 100 50 3
+
+# 4. Single-agent interactive simulation (click goals in RViz2)
+python3 src/mighty/scripts/run_sim.py --mode interactive -s install/setup.bash
+
+# 5. Multi-agent aerial simulation (default: 10 agents, or custom number)
+python3 src/mighty/scripts/run_sim.py --mode multiagent -s install/setup.bash --num-agents 5
+```
 
 ---
 
@@ -316,6 +388,7 @@ python3 src/mighty/scripts/run_sim.py --mode gazebo -s ~/code/mighty_ws/install/
   --start, -p         Start position X Y Z for gazebo mode (default: 0 0 3)
   --start-yaw         Start yaw in radians (default: 1.57)
   --env, -e           Gazebo environment (default: hard_forest)
+  --num-obstacles     Number of dynamic obstacles for dynamic_forest (default: 5)
   --ros-domain-id     ROS_DOMAIN_ID (default: 20)
   --no-rviz           Disable RViz
   --gazebo-gui        Enable Gazebo GUI
