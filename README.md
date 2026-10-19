@@ -112,28 +112,162 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_SIMULATION=ON --sym
 source install/setup.bash
 ```
 
-#### 6. Run Simulations (Gazebo Harmonic / Gz Sim)
+#### 6. Next Steps
 
-Use `run_sim.py` to launch simulations:
+After sourcing the workspace, proceed to the [Simulation & Operation Guide](#-simulation--operation-guide-ros-2-lyrical--gazebo-harmonic) below to run simulations with Gazebo Harmonic and RViz2.
 
+---
+
+## 🎮 Simulation & Operation Guide (ROS 2 Lyrical & Gazebo Harmonic)
+
+All simulations on this branch are managed by `run_sim.py`, a unified orchestrator that uses `tmuxp` to launch MIGHTY, Gazebo Harmonic (Gz Sim), RViz2, and associated bridges seamlessly.
+
+### 1. Gazebo Harmonic Simulations (`--mode gazebo`)
+
+#### A. Static Forest Environments
 ```bash
-# 1. Single-agent Gazebo simulation (hard forest environment)
+# Default dense forest world (hard_forest) with Gazebo GUI
 python3 src/mighty/scripts/run_sim.py --mode gazebo -s install/setup.bash --gazebo-gui
 
-# 2. Dynamic forest environment with moving obstacles
+# Lower-density forest world (easy_forest)
+python3 src/mighty/scripts/run_sim.py --mode gazebo --env easy_forest -s install/setup.bash --gazebo-gui
+
+# Headless mode (no RViz2, lighter resource usage)
+python3 src/mighty/scripts/run_sim.py --mode gazebo -s install/setup.bash --no-rviz
+```
+
+#### B. Dynamic Forest with Moving Obstacles
+Spawns moving obstacle spheres governed by the Gazebo Sim System Plugin:
+```bash
+# Dynamic forest with default 5 moving obstacles
 python3 src/mighty/scripts/run_sim.py --mode gazebo --env dynamic_forest --num-obstacles 5 -s install/setup.bash --gazebo-gui
 
-# 3. Gazebo with custom start and goal positions
-python3 src/mighty/scripts/run_sim.py --mode gazebo -s install/setup.bash --gazebo-gui --start 0 0 3 --goal 100 50 3
+# Dynamic forest with custom number of moving obstacles (e.g. 10 obstacles)
+python3 src/mighty/scripts/run_sim.py --mode gazebo --env dynamic_forest --num-obstacles 10 -s install/setup.bash --gazebo-gui
+```
 
-# 4. Single-agent interactive simulation (click goals in RViz2)
-python3 src/mighty/scripts/run_sim.py --mode interactive -s install/setup.bash
+#### C. Custom Start & Goal Coordinates
+```bash
+# Specify start coordinates (X Y Z), heading (radians), and target goal
+python3 src/mighty/scripts/run_sim.py --mode gazebo -s install/setup.bash --gazebo-gui \
+  --start 0 0 3 \
+  --start-yaw 1.57 \
+  --goal 100 50 3
+```
 
-# 5. Multi-agent aerial simulation (default: 10 agents, or custom number)
-python3 src/mighty/scripts/run_sim.py --mode multiagent -s install/setup.bash --num-agents 5
+#### D. Ground Robot Simulation (Pioneer 3-AT)
+```bash
+# Ground vehicle navigation in Gazebo
+python3 src/mighty/scripts/run_sim.py --mode gazebo --ground-robot -s install/setup.bash --gazebo-gui
 ```
 
 ---
+
+### 2. Interactive Single-Agent Mode (`--mode interactive`)
+
+A lightweight simulation using `fake_sim` without the computational overhead of Gazebo rendering:
+
+```bash
+python3 src/mighty/scripts/run_sim.py --mode interactive -s install/setup.bash
+```
+
+- **Interactive Control:** In the RViz2 toolbar, click **"2D Goal Pose"**, then click and drag on the map to set a new goal position and heading. The planner will optimize and execute a Hermite spline trajectory in real time.
+
+---
+
+### 3. Multi-Agent Swarm Simulation (`--mode multiagent`)
+
+Simulates multiple quadrotors in a circle formation swapping diametrically opposite positions while avoiding inter-agent collisions:
+
+```bash
+# Default multi-agent simulation (10 agents on a 10m radius circle)
+python3 src/mighty/scripts/run_sim.py --mode multiagent -s install/setup.bash
+
+# Custom swarm size and formation radius
+python3 src/mighty/scripts/run_sim.py --mode multiagent -s install/setup.bash --num-agents 5 --radius 8.0
+```
+
+---
+
+### 4. Exploration & Dynamic Verification Modes
+
+#### A. Autonomous Ground Robot Exploration
+```bash
+# Single ground robot autonomous frontier exploration (Gazebo)
+python3 src/mighty/scripts/run_sim.py --mode exploration-singleagent-ground -s install/setup.bash --gazebo-gui
+
+# Multi-agent collaborative frontier exploration (MinPos)
+python3 src/mighty/scripts/run_sim.py --mode exploration-multiagent-ground -s install/setup.bash --num-agents 3 --gazebo-gui
+```
+
+#### B. Dynamic Obstacle Sensing & Heatmap Verification
+```bash
+# 1 drone + 1 dynamic obstacle (observe dynamic heatmap in RViz)
+python3 src/mighty/scripts/run_sim.py --mode dyn-test -s install/setup.bash --gazebo-gui
+
+# Ground robot + dynamic obstacle
+python3 src/mighty/scripts/run_sim.py --mode dyn-test-ground -s install/setup.bash --gazebo-gui
+
+# Ground robot + MPC controller + dynamic obstacle
+python3 src/mighty/scripts/run_sim.py --mode dyn-test-ground-mpc -s install/setup.bash --gazebo-gui
+```
+
+---
+
+### 5. Sending & Changing Goals on the Fly
+
+You can dynamically send new target destinations to the planner at any time:
+
+1. **Via RViz2 GUI:**
+   - Click the **"2D Goal Pose"** tool on the top toolbar.
+   - Click and drag anywhere in the 3D view to command the agent.
+
+2. **Via ROS 2 Command-Line:**
+   - Publish a `geometry_msgs/msg/PoseStamped` message directly to the goal topic:
+   ```bash
+   ros2 topic pub /NX01/term_goal geometry_msgs/msg/PoseStamped "{header: {stamp: {sec: 0, nanosec: 0}, frame_id: 'map'}, pose: {position: {x: 100.0, y: 50.0, z: 3.0}, orientation: {w: 1.0}}}" --once
+   ```
+
+---
+
+### 6. Simulation Management & Clean Shutdown
+
+`run_sim.py` launches nodes inside a background `tmux` session named `mighty_sim`. To stop all simulation nodes and clean up background processes:
+
+```bash
+# Stop and kill the active simulation tmux session
+tmux kill-session -t mighty_sim
+
+# Clean up any lingering Gazebo processes if needed
+pkill -f gz
+```
+
+---
+
+### 7. Full CLI Options Reference
+
+| Option | Flag | Description | Default |
+|---|---|---|---|
+| `--mode` | `-m` | Simulation mode: `gazebo`, `interactive`, `multiagent`, `exploration-singleagent-ground`, `dyn-test`, etc. | **Required** |
+| `--setup-bash` | `-s` | Path to workspace `install/setup.bash` | **Required** |
+| `--env` | `-e` | Gazebo environment: `hard_forest`, `easy_forest`, `dynamic_forest`, `ACL_office` | `hard_forest` |
+| `--num-obstacles` | | Number of moving obstacles in `dynamic_forest` | `5` |
+| `--goal` | `-g` | Target goal coordinates `X Y Z` (meters) | `305 0 3` |
+| `--start` | `-p` | Starting coordinates `X Y Z` (meters) | `0 0 3` |
+| `--start-yaw` | | Initial vehicle heading in radians | `1.57` |
+| `--gazebo-gui` | | Launch Gazebo Sim GUI window | `False` |
+| `--no-rviz` | | Disable RViz2 GUI | `False` |
+| `--num-agents` | `-n` | Number of agents in multi-agent mode | `10` |
+| `--radius` | | Formation circle radius in meters | `10.0` |
+| `--ground-robot` | | Use Pioneer 3-AT ground robot instead of aerial drone | `False` |
+| `--dry-run` | | Print the generated tmuxp YAML layout without running | `False` |
+| `--ros-domain-id` | | Set custom ROS_DOMAIN_ID | `20` |
+
+---
+
+## Legacy Installation Methods (Ubuntu 22.04 / ROS 2 Humble)
+
+The sections below describe the legacy setup for ROS 2 Humble and Docker.
 
 ### Docker Installation (Linux)
 
