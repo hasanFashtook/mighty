@@ -10,7 +10,7 @@ import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, OpaqueFunction
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, OpaqueFunction, SetEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
@@ -96,13 +96,20 @@ def generate_launch_description():
 
         use_rviz = convert_str_to_bool(LaunchConfiguration('use_rviz').perform(context))
         use_dyn_obs = convert_str_to_bool(LaunchConfiguration('use_dyn_obs').perform(context))
+        if env_value == 'dynamic_forest':
+            use_dyn_obs = True
         use_gazebo_gui = LaunchConfiguration('use_gazebo_gui').perform(context)
         use_ground_robot = convert_str_to_bool(LaunchConfiguration('use_ground_robot').perform(context))
 
+        # Ensure Gz Sim finds move_model system plugin
+        install_share_dir = get_package_share_directory('mighty')
+        mighty_lib_dir = os.path.join(os.path.dirname(install_share_dir), 'lib')
+        curr_gz_plugin_path = os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')
+        if mighty_lib_dir not in curr_gz_plugin_path:
+            os.environ['GZ_SIM_SYSTEM_PLUGIN_PATH'] = f"{mighty_lib_dir}:{curr_gz_plugin_path}" if curr_gz_plugin_path else mighty_lib_dir
+
         # Create a rviz node - prefer source rviz config over installed one
         rviz_config_filename = 'mighty_sim_ground_robot.rviz' if use_ground_robot else 'mighty.rviz'
-        # Derive workspace root from installed package path (install/mighty/share/mighty -> workspace root)
-        install_share_dir = get_package_share_directory('mighty')
         ws_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(install_share_dir))))
         src_rviz_dir = os.path.join(ws_root, 'src', 'mighty', 'rviz')
         rviz_config_file = os.path.join(src_rviz_dir, rviz_config_filename)
@@ -179,7 +186,8 @@ def generate_launch_description():
         )
 
         # Return launch description
-        nodes_to_start = [gz_sim_launch, ros_gz_bridge_node]
+        set_plugin_env = SetEnvironmentVariable('GZ_SIM_SYSTEM_PLUGIN_PATH', os.environ['GZ_SIM_SYSTEM_PLUGIN_PATH'])
+        nodes_to_start = [set_plugin_env, gz_sim_launch, ros_gz_bridge_node]
         nodes_to_start.append(rviz_node) if use_rviz else None
         nodes_to_start.append(dynamic_obstacles_launch) if use_dyn_obs else None
 

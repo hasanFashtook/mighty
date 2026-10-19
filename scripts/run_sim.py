@@ -675,10 +675,13 @@ def generate_gazebo_yaml(setup_bash: Path, goal: tuple, sim_env: str,
                          start_pos: tuple = (0, 0, 3.0), start_yaw: float = 1.57,
                          ros_domain_id: int = 7, use_rviz: bool = True,
                          use_gazebo_gui: bool = False, use_ground_robot: bool = False,
-                         no_goal: bool = False) -> str:
+                         no_goal: bool = False, num_obstacles: int = None) -> str:
     """Generate YAML for single-agent Gazebo simulation."""
     goal_x, goal_y, goal_z = goal
     start_x, start_y, start_z = start_pos
+    if num_obstacles is None:
+        num_obstacles = 5 if env == 'dynamic_forest' else 1
+    dyn_obs_arg = f'use_dyn_obs:=true num_dyn_obstacles:={num_obstacles}' if (env == 'dynamic_forest' or num_obstacles > 1) else ''
 
     panes = [
         # Base station with Gazebo
@@ -686,7 +689,7 @@ def generate_gazebo_yaml(setup_bash: Path, goal: tuple, sim_env: str,
             'shell_command': [
                 f'ros2 launch mighty base_mighty.launch.py '
                 f'use_gazebo_gui:={str(use_gazebo_gui).lower()} use_rviz:={str(use_rviz).lower()} '
-                f'env:={env} use_ground_robot:={str(use_ground_robot).lower()}'
+                f'env:={env} use_ground_robot:={str(use_ground_robot).lower()} {dyn_obs_arg}'.strip()
             ]
         },
         # Ground robot odom-to-state converter (only for ground robot)
@@ -736,7 +739,8 @@ def generate_gazebo_yaml(setup_bash: Path, goal: tuple, sim_env: str,
   exit 1
 fi
 unset AMENT_PREFIX_PATH COLCON_PREFIX_PATH CMAKE_PREFIX_PATH PYTHONPATH LD_LIBRARY_PATH
-. "$SETUP_BASH"''',
+. "$SETUP_BASH"
+export GZ_SIM_SYSTEM_PLUGIN_PATH="$(dirname "$SETUP_BASH")/mighty/lib:$GZ_SIM_SYSTEM_PLUGIN_PATH"''',
                 f'export ROS_DOMAIN_ID={ros_domain_id}'
             ],
             'panes': panes + [{'shell_command': ['# free pane — type commands here, e.g. `ros2 topic echo /NX01/term_goal`']}]
@@ -838,6 +842,13 @@ def main():
         '--gazebo-gui',
         action='store_true',
         help='Enable Gazebo GUI (default: False)'
+    )
+
+    parser.add_argument(
+        '--num-obstacles',
+        type=int,
+        default=None,
+        help='Number of dynamic obstacles for dynamic_forest mode (default: 5 for dynamic_forest, 1 otherwise)'
     )
 
     parser.add_argument(
@@ -1040,7 +1051,8 @@ def main():
             use_rviz=use_rviz,
             use_gazebo_gui=args.gazebo_gui,
             use_ground_robot=use_ground_robot,
-            no_goal=no_goal
+            no_goal=no_goal,
+            num_obstacles=args.num_obstacles
         )
         print(f"[INFO] Mode: Single-agent Gazebo simulation (sim_env={sim_env})")
         print(f"[INFO] Environment: {args.env} (world: {world_name})")
